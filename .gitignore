@@ -205,3 +205,21 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+# Virtual environment
+venv/
+
+# Data files
+data/1st_test/
+data/2nd_test/
+data/3rd_test/
+bearing-dataset.zip
+
+# Node modules (root level)
+node_modules/
+
+# Jupyter
+.ipynb_checkpoints/
+Untitled.ipynb
+
+# Dashboard node modules handled by dashboard/.gitignore
+dashboard/node_modules/
