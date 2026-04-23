@@ -16,10 +16,10 @@ manufacturers in the US who can't afford enterprise solutions.
 
 ## Status
 - [x] Phase 1 — Environment setup & data exploration
-- [ ] Phase 2 — Anomaly detection core
-- [ ] Phase 3 — Backend API & data ingestion
-- [ ] Phase 4 — Dashboard & alert UI
-- [ ] Phase 5 — Community & deployment
+- [x] Phase 2 — Anomaly detection core
+- [x] Phase 3 — Backend API & data ingestion
+- [x] Phase 4 — Dashboard & alert UI
+- [x] Phase 5 — Community & deployment
 
 ## Author
 Dhirendra K. Sah — Controls & Automation Engineer | MS Mechatronics, NDSU
