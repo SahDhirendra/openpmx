@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import axios from "axios"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
-const API_URL = "http://127.0.0.1:8000"
+const API_URL = "https://openpmx-backend.onrender.com"
 
 // Sample historical data for charts
 const sampleHistory = [
