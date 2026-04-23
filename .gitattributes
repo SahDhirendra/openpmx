@@ -1,0 +1,7 @@
+# Ignore Jupyter notebooks for language statistics
+*.ipynb linguist-detectable=false
+
+# Mark these as the primary languages
+*.py linguist-detectable=true
+*.jsx linguist-detectable=true
+*.js linguist-detectable=true
