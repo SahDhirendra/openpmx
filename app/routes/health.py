@@ -63,21 +63,33 @@ def predict_health(reading: SensorReading):
 def train_predictor():
     """Train the predictor on NASA bearing dataset"""
     import os
+    import traceback
+    
     data_path = os.path.join(os.path.dirname(__file__), 
                              "..", "..", "data")
     data_path = os.path.abspath(data_path)
     
-    if not os.path.exists(data_path):
-        raise HTTPException(
-            status_code=404,
-            detail=f"Data folder not found at {data_path}"
-        )
+    print(f"Looking for data at: {data_path}")
+    print(f"Data path exists: {os.path.exists(data_path)}")
     
-    predictor.train(data_path)
+    if os.path.exists(data_path):
+        print(f"Contents: {os.listdir(data_path)}")
     
-    return {
-        "status": "trained",
-        "message": "Predictor trained successfully on NASA bearing dataset",
-        "baseline_mean": predictor.baseline_mean.tolist(),
-        "thresholds": predictor.dynamic_thresholds.tolist()
-    }
+    try:
+        if not os.path.exists(data_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Data folder not found at {data_path}"
+            )
+        
+        predictor.train(data_path)
+        
+        return {
+            "status": "trained",
+            "message": "Predictor trained successfully on NASA bearing dataset",
+            "baseline_mean": predictor.baseline_mean.tolist(),
+            "thresholds": predictor.dynamic_thresholds.tolist()
+        }
+    except Exception as e:
+        print(f"Training error: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
