@@ -12,8 +12,35 @@ class BearingPredictor:
 
     def train(self, data_path: str):
         """Train the predictor on historical bearing data"""
-        print("Loading bearing data...")
+        import zipfile
+
         first_folder = os.path.join(data_path, "1st_test", "1st_test")
+
+        # Download data if not present
+        if not os.path.exists(first_folder):
+            print("Data not found. Downloading from Kaggle...")
+            os.makedirs(data_path, exist_ok=True)
+
+            import subprocess
+            subprocess.run([
+                "pip", "install", "kaggle"
+            ], check=True)
+
+            zip_path = os.path.join(data_path, "bearing-dataset.zip")
+            subprocess.run([
+                "kaggle", "datasets", "download",
+                "-d", "vinayak123tyagi/bearing-dataset",
+                "-p", data_path
+            ], check=True)
+
+            print("Extracting dataset...")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(data_path)
+
+            os.remove(zip_path)
+            print("Dataset ready!")
+
+        print("Loading bearing data...")
         all_files = sorted(os.listdir(first_folder))
 
         records = []
@@ -30,7 +57,6 @@ class BearingPredictor:
 
         df = pd.DataFrame(records)
 
-        # Calculate baseline from first 500 snapshots
         baseline = df.values[:500]
         self.baseline_mean = baseline.mean(axis=0)
         self.baseline_std = baseline.std(axis=0)
@@ -76,7 +102,7 @@ class BearingPredictor:
 
         # Overall machine health
         overall = min(r["health_score"] for r in results.values())
-        
+
         return {
             "bearings": results,
             "overall_health": round(overall, 1),
