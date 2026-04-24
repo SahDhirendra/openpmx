@@ -48,30 +48,32 @@ triggered a critical alert.
 
 ## Quick Start
 
-### Option 1 — Use the live demo
-Visit [https://openpmx-frontend.onrender.com](https://openpmx-frontend.onrender.com)
+### Option 1 — Use the live demo (no installation)
+👉 **[https://openpmx-frontend.onrender.com](https://openpmx-frontend.onrender.com)**
 
-### Option 2 — Run locally with Docker
+### Option 2 — Run locally with Docker (one command)
 ```bash
 git clone https://github.com/SahDhirendra/openpmx
 cd openpmx
 docker-compose up
 ```
-Open http://localhost:5173
+Open **http://localhost:5173** in your browser.
+That's it — no Python, no Node.js, no setup required.
 
-### Option 3 — Run without Docker
+### Option 3 — Run without Docker (development mode)
 ```bash
-# Backend
+# Terminal 1 — Backend
 git clone https://github.com/SahDhirendra/openpmx
 cd openpmx
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 
-# Frontend (new terminal)
+# Terminal 2 — Frontend
 cd dashboard
 npm install --legacy-peer-deps
 npm run dev
 ```
+Open **http://localhost:5173**
 
 ## Development Phases
 
