@@ -46,6 +46,16 @@ API Documentation: [https://openpmx-backend.onrender.com/docs](https://openpmx-b
 Platform detected **908% vibration increase** in Bearing 3 and correctly 
 triggered a critical alert.
 
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Manufacturer Guide](docs/MANUFACTURER_GUIDE.md) | For plant managers — no coding required |
+| [Setup Guide](docs/SETUP.md) | For developers and IT teams |
+| [API Reference](docs/API.md) | Full API documentation |
+| [Contributing](CONTRIBUTING.md) | How to contribute to the project |
+| [Development Phases](PHASES.md) | Project roadmap and progress |
+
 ## Quick Start
 
 ### Option 1 — Use the live demo (no installation)
