@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenPMX — Open-Source Predictive Maintenance</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; line-height: 1.6; }
+
+    /* Nav */
+    nav { background: #fff; border-bottom: 1px solid #eee; padding: 16px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+    .nav-logo { font-size: 20px; font-weight: 700; color: #1D9E75; text-decoration: none; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { text-decoration: none; color: #555; font-size: 14px; }
+    .nav-btn { background: #1D9E75; color: white !important; padding: 8px 18px; border-radius: 8px; font-weight: 500; }
+
+    /* Hero */
+    .hero { background: linear-gradient(135deg, #f0fdf8 0%, #e8f5ff 100%); padding: 100px 40px; text-align: center; }
+    .hero-badge { display: inline-block; background: #E1F5EE; color: #085041; padding: 4px 14px; border-radius: 99px; font-size: 13px; font-weight: 500; margin-bottom: 20px; }
+    .hero h1 { font-size: 52px; font-weight: 700; color: #0a0a0a; margin-bottom: 20px; line-height: 1.2; }
+    .hero h1 span { color: #1D9E75; }
+    .hero p { font-size: 20px; color: #555; max-width: 600px; margin: 0 auto 40px; }
+    .hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary { background: #1D9E75; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; }
+    .btn-secondary { background: white; color: #1a1a1a; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; border: 1px solid #ddd; }
+
+    /* Stats */
+    .stats { background: white; padding: 60px 40px; display: flex; justify-content: center; gap: 80px; flex-wrap: wrap; border-bottom: 1px solid #eee; }
+    .stat { text-align: center; }
+    .stat-number { font-size: 40px; font-weight: 700; color: #1D9E75; }
+    .stat-label { font-size: 14px; color: #777; margin-top: 4px; }
+
+    /* Problem */
+    .section { padding: 80px 40px; max-width: 1100px; margin: 0 auto; }
+    .section-tag { display: inline-block; background: #E1F5EE; color: #085041; padding: 4px 14px; border-radius: 99px; font-size: 13px; font-weight: 500; margin-bottom: 16px; }
+    .section h2 { font-size: 36px; font-weight: 700; margin-bottom: 16px; }
+    .section p { font-size: 18px; color: #555; max-width: 700px; margin-bottom: 40px; }
+
+    /* Feature cards */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 40px; }
+    .card { background: white; border: 1px solid #eee; border-radius: 16px; padding: 28px; }
+    .card-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 16px; }
+    .card h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .card p { font-size: 15px; color: #666; }
+
+    /* How it works */
+    .how-section { background: #f8f9fa; padding: 80px 40px; }
+    .how-inner { max-width: 1100px; margin: 0 auto; }
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 32px; margin-top: 48px; }
+    .step { text-align: center; }
+    .step-num { width: 48px; height: 48px; background: #1D9E75; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; margin: 0 auto 16px; }
+    .step h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .step p { font-size: 14px; color: #666; }
+
+    /* Results */
+    .results-section { padding: 80px 40px; max-width: 1100px; margin: 0 auto; }
+    .results-table { width: 100%; border-collapse: collapse; margin-top: 32px; border-radius: 12px; overflow: hidden; border: 1px solid #eee; }
+    .results-table th { background: #1D9E75; color: white; padding: 14px 20px; text-align: left; font-size: 14px; }
+    .results-table td { padding: 14px 20px; border-bottom: 1px solid #eee; font-size: 15px; }
+    .results-table tr:last-child td { border-bottom: none; }
+    .badge-healthy { background: #E1F5EE; color: #085041; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; }
+    .badge-critical { background: #FAECE7; color: #712B13; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; }
+    .badge-warning { background: #FAEEDA; color: #633806; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; }
+
+    /* CTA */
+    .cta { background: #1D9E75; padding: 80px 40px; text-align: center; }
+    .cta h2 { font-size: 36px; font-weight: 700; color: white; margin-bottom: 16px; }
+    .cta p { font-size: 18px; color: rgba(255,255,255,0.85); margin-bottom: 40px; }
+    .cta-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .btn-white { background: white; color: #1D9E75; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; }
+    .btn-outline { background: transparent; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; border: 2px solid white; }
+
+    /* Footer */
+    footer { background: #0a0a0a; color: #999; padding: 40px; text-align: center; font-size: 14px; }
+    footer a { color: #1D9E75; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <a href="#" class="nav-logo">OpenPMX</a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How it works</a>
+    <a href="#results">Results</a>
+    <a href="https://github.com/SahDhirendra/openpmx">GitHub</a>
+    <a href="https://openpmx-frontend.onrender.com" class="nav-btn">Try Live Demo</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-badge">Free & Open Source</div>
+  <h1>Predict machine failures<br><span>before they happen</span></h1>
+  <p>OpenPMX gives small and mid-sized manufacturers the same AI-powered predictive maintenance capabilities that Fortune 500 companies pay $100,000/year for — completely free.</p>
+  <div class="hero-buttons">
+    <a href="https://openpmx-frontend.onrender.com" class="btn-primary">Try Live Demo</a>
+    <a href="https://github.com/SahDhirendra/openpmx" class="btn-secondary">View on GitHub</a>
+  </div>
+</section>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-number">$0</div>
+    <div class="stat-label">Cost forever</div>
+  </div>
+  <div class="stat">
+    <div class="stat-number">908%</div>
+    <div class="stat-label">Vibration increase detected</div>
+  </div>
+  <div class="stat">
+    <div class="stat-number">300k+</div>
+    <div class="stat-label">US manufacturers who can benefit</div>
+  </div>
+  <div class="stat">
+    <div class="stat-number">1 cmd</div>
+    <div class="stat-label">To deploy anywhere</div>
+  </div>
+</div>
+
+<!-- Features -->
+<section class="section" id="features">
+  <div class="section-tag">Features</div>
+  <h2>Everything your maintenance team needs</h2>
+  <p>Built by a controls engineer who understands manufacturing — not just software.</p>
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon" style="background:#E1F5EE">🔍</div>
+      <h3>Anomaly Detection</h3>
+      <p>Detects abnormal machine behavior the moment it starts — not after it becomes a crisis.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#E6F1FB">⏱️</div>
+      <h3>Remaining Useful Life</h3>
+      <p>Predicts how many days before a component reaches its failure threshold.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#FAEEDA">🏥</div>
+      <h3>Health Scoring</h3>
+      <p>Every machine gets a 0–100 health score. No technical knowledge needed to read it.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#FAECE7">🚨</div>
+      <h3>Instant Alerts</h3>
+      <p>Critical alerts trigger automatically when a machine needs immediate attention.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#E1F5EE">🔒</div>
+      <h3>On-Premise Ready</h3>
+      <p>Run entirely on your own network. Your sensor data never leaves your facility.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#EEEDFE">⚡</div>
+      <h3>One Command Deploy</h3>
+      <p>docker-compose up — that's it. Full platform running in minutes on any server.</p>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<div class="how-section" id="how-it-works">
+  <div class="how-inner">
+    <div style="text-align:center">
+      <div class="section-tag">How it works</div>
+      <h2 style="font-size:36px;font-weight:700;margin-bottom:16px">Simple. Powerful. Free.</h2>
+      <p style="font-size:18px;color:#555;max-width:600px;margin:0 auto">From sensor data to health scores in under a second.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Connect sensors</h3>
+        <p>Your existing vibration, temperature, or pressure sensors send data to OpenPMX.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Train on your data</h3>
+        <p>OpenPMX learns what "normal" looks like for your specific machines.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Get health scores</h3>
+        <p>Every machine gets a real-time score from 0 to 100.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Act before failure</h3>
+        <p>Schedule maintenance when it's convenient — not when machines break down.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Results -->
+<section class="results-section" id="results">
+  <div class="section-tag">Proven results</div>
+  <h2>Validated on NASA industrial dataset</h2>
+  <p>Tested on the NASA IMS Bearing Dataset — 34 days of real bearing sensor data running until failure.</p>
+  <table class="results-table">
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Final Health Score</th>
+        <th>Status</th>
+        <th>Outcome</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Bearing 1</td>
+        <td>80 / 100</td>
+        <td><span class="badge-healthy">Healthy</span></td>
+        <td>Correctly identified as healthy</td>
+      </tr>
+      <tr>
+        <td>Bearing 2</td>
+        <td>86 / 100</td>
+        <td><span class="badge-healthy">Healthy</span></td>
+        <td>Correctly identified as healthy</td>
+      </tr>
+      <tr>
+        <td>Bearing 3</td>
+        <td>0 / 100</td>
+        <td><span class="badge-critical">Critical</span></td>
+        <td>✓ Correctly identified failure — 908% vibration increase</td>
+      </tr>
+      <tr>
+        <td>Bearing 4</td>
+        <td>39 / 100</td>
+        <td><span class="badge-warning">Warning</span></td>
+        <td>Correctly flagged degradation weeks before failure</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <h2>Ready to protect your machines?</h2>
+  <p>Join manufacturers across the US using OpenPMX to prevent costly downtime.</p>
+  <div class="cta-buttons">
+    <a href="https://openpmx-frontend.onrender.com" class="btn-white">Try Live Demo</a>
+    <a href="https://github.com/SahDhirendra/openpmx" class="btn-outline">View on GitHub</a>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p>OpenPMX — Open-source predictive maintenance for US manufacturers</p>
+  <p style="margin-top:8px">Built by <a href="https://linkedin.com/in/dhirendrasah">Dhirendra K. Sah</a> · <a href="https://github.com/SahDhirendra/openpmx">GitHub</a> · MIT License</p>
+</footer>
+
+</body>
+</html>
