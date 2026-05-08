@@ -1,5 +1,5 @@
 # OpenPMX — Open-Source Predictive Maintenance Platform
-
+[![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://sahdhirendra.github.io/openpmx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
