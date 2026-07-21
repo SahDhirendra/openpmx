@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends
+from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List
 from app.models.sensor import SensorReading, HealthResponse
 from app.core.predictor import predictor
+from app.core.database import get_db, SensorReadingDB, AlertDB
 import json
 
 router = APIRouter()
@@ -73,10 +75,10 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 @router.post("/ingest")
-async def ingest_reading(reading: SensorReading):
+async def ingest_reading(reading: SensorReading, db: Session = Depends(get_db)):
     """
     Receive sensor readings from edge device (Raspberry Pi)
-    Automatically scores and broadcasts to all connected dashboards
+    Automatically scores, saves to database, and broadcasts to all dashboards
     """
     if not predictor.is_trained:
         raise HTTPException(
@@ -102,6 +104,42 @@ async def ingest_reading(reading: SensorReading):
     else:
         message = "Critical! Imminent bearing failure. Stop machine now."
 
+    # Save reading to database
+    db_reading = SensorReadingDB(
+        machine_id=reading.machine_id,
+        timestamp=reading.timestamp,
+        bearing1_rms=reading.bearing1_rms,
+        bearing2_rms=reading.bearing2_rms,
+        bearing3_rms=reading.bearing3_rms,
+        bearing4_rms=reading.bearing4_rms,
+        bearing1_health=result["bearings"]["bearing1"]["health_score"],
+        bearing2_health=result["bearings"]["bearing2"]["health_score"],
+        bearing3_health=result["bearings"]["bearing3"]["health_score"],
+        bearing4_health=result["bearings"]["bearing4"]["health_score"],
+        overall_health=result["overall_health"],
+        alert=result["alert"],
+        message=message
+    )
+    db.add(db_reading)
+
+    # Save alert to database if triggered
+    if result["alert"]:
+        # Find which bearing is most critical
+        critical_bearing = min(
+            result["bearings"].items(),
+            key=lambda x: x[1]["health_score"]
+        )[0]
+        db_alert = AlertDB(
+            machine_id=reading.machine_id,
+            timestamp=reading.timestamp,
+            overall_health=result["overall_health"],
+            message=message,
+            bearing_affected=critical_bearing
+        )
+        db.add(db_alert)
+
+    db.commit()
+
     # Build response
     response = {
         "type": "reading",
@@ -117,6 +155,53 @@ async def ingest_reading(reading: SensorReading):
     await manager.broadcast(response)
 
     return response
+
+@router.get("/history/{machine_id}")
+def get_history(machine_id: str, limit: int = 100, db: Session = Depends(get_db)):
+    """Get last N readings for a machine — used by dashboard charts"""
+    readings = db.query(SensorReadingDB)\
+        .filter(SensorReadingDB.machine_id == machine_id)\
+        .order_by(SensorReadingDB.timestamp.desc())\
+        .limit(limit)\
+        .all()
+
+    return {
+        "machine_id": machine_id,
+        "readings": [
+            {
+                "timestamp": r.timestamp.isoformat(),
+                "overall_health": r.overall_health,
+                "bearing1_health": r.bearing1_health,
+                "bearing2_health": r.bearing2_health,
+                "bearing3_health": r.bearing3_health,
+                "bearing4_health": r.bearing4_health,
+                "alert": r.alert
+            }
+            for r in reversed(readings)
+        ]
+    }
+
+@router.get("/alerts/{machine_id}")
+def get_alerts(machine_id: str, limit: int = 50, db: Session = Depends(get_db)):
+    """Get recent alerts for a machine"""
+    alerts = db.query(AlertDB)\
+        .filter(AlertDB.machine_id == machine_id)\
+        .order_by(AlertDB.timestamp.desc())\
+        .limit(limit)\
+        .all()
+
+    return {
+        "machine_id": machine_id,
+        "alerts": [
+            {
+                "timestamp": a.timestamp.isoformat(),
+                "overall_health": a.overall_health,
+                "message": a.message,
+                "bearing_affected": a.bearing_affected
+            }
+            for a in alerts
+        ]
+    }
 
 @router.post("/predict", response_model=HealthResponse)
 def predict_health(reading: SensorReading):

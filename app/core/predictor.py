@@ -94,8 +94,8 @@ class BearingPredictor:
                 status = "critical"
 
             results[f"bearing{i+1}"] = {
-                "rms": round(reading, 4),
-                "health_score": round(health, 1),
+                "rms": round(float(reading), 4),
+                "health_score": round(float(health), 1),
                 "status": status,
                 "threshold": round(thresh, 4)
             }
@@ -105,8 +105,8 @@ class BearingPredictor:
 
         return {
             "bearings": results,
-            "overall_health": round(overall, 1),
-            "alert": overall < 50
+            "overall_health": round(float(overall), 1),
+            "alert": bool(overall < 50)
         }
 
 # Global predictor instance

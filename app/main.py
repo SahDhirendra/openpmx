@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.websockets import WebSocket
 from app.routes.health import router
+from app.core.database import init_db
 
 # Create FastAPI app
 app = FastAPI(
@@ -9,6 +9,12 @@ app = FastAPI(
     description="Open-source predictive maintenance platform for manufacturing",
     version="0.1.0"
 )
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    init_db()
+    print("OpenPMX started successfully!")
 
 # Allow React dashboard to talk to the API
 app.add_middleware(
