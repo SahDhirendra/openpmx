@@ -31,3 +31,7 @@ dashboard/dist/
 # Environment files
 .env
 .env.local
+
+# Test files
+test_ingest.py
+data/openpmx.db
