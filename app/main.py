@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.websockets import WebSocket
 from app.routes.health import router
 
 # Create FastAPI app
@@ -12,7 +13,11 @@ app = FastAPI(
 # Allow React dashboard to talk to the API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://openpmx-frontend.onrender.com"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://openpmx-frontend.onrender.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -20,4 +25,3 @@ app.add_middleware(
 
 # Include routes
 app.include_router(router)
-
