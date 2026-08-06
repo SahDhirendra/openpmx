@@ -49,6 +49,19 @@ class AlertDB(Base):
     bearing_affected = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class DowntimeEventDB(Base):
+    __tablename__ = "downtime_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    machine_id = Column(String, index=True)
+    start_time = Column(DateTime, default=datetime.utcnow)
+    end_time = Column(DateTime, nullable=True)
+    duration_minutes = Column(Float, nullable=True)
+    cause = Column(String, nullable=True)
+    health_at_start = Column(Float, nullable=True)
+    resolved = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 def init_db():
     """Create all tables if they don't exist"""
     Base.metadata.create_all(bind=engine)

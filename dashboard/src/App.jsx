@@ -67,6 +67,8 @@ export default function App() {
   const [history, setHistory] = useState([])
   const [lastUpdate, setLastUpdate] = useState(null)
   const [csvResult, setCsvResult] = useState(null)
+  const [oee, setOee] = useState(null)
+  const [downtime, setDowntime] = useState([])
   const wsRef = useRef(null)
   const pingRef = useRef(null)
 
@@ -98,12 +100,24 @@ export default function App() {
     }
   }
 
+  const loadOEE = async () => {
+    try {
+      const oeeRes = await axios.get(`${API_URL}/oee/machine_001`)
+      setOee(oeeRes.data)
+      const dtRes = await axios.get(`${API_URL}/downtime/machine_001`)
+      setDowntime(dtRes.data.downtime_events)
+    } catch (e) {
+      console.error("Failed to load OEE:", e)
+    }
+  }
+  
   const checkHealth = async () => {
     try {
       const res = await axios.get(`${API_URL}/health`)
       setTrained(res.data.predictor_trained)
       if (res.data.predictor_trained) {
         await loadHistory()
+        await loadOEE()
       }
     } catch (e) {
       setError("Cannot connect to API. Make sure the backend is running.")
@@ -134,6 +148,7 @@ export default function App() {
           setHealth(data)
           setLastUpdate(new Date().toLocaleTimeString())
           setTrained(true)
+          loadOEE()
           const newPoint = {
             time: new Date(data.timestamp).toLocaleTimeString(),
             overall: data.overall_health,
@@ -389,6 +404,123 @@ export default function App() {
           ))}
         </div>
       )}
+
+
+      {/* OEE Widget */}
+{oee && (
+  <div style={{ background: "white", borderRadius: "12px", padding: "20px", marginBottom: "16px" }}>
+    <h2 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 600 }}>
+      Overall Equipment Effectiveness (OEE) — Last 24 hours
+    </h2>
+    <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "16px" }}>
+      
+      {/* OEE Score */}
+      <div style={{
+        flex: 1, minWidth: "140px", textAlign: "center",
+        background: oee.oee >= 85 ? "#E1F5EE" : oee.oee >= 60 ? "#FAEEDA" : "#FAECE7",
+        borderRadius: "12px", padding: "20px"
+      }}>
+        <div style={{
+          fontSize: "42px", fontWeight: 700,
+          color: oee.oee >= 85 ? "#1D9E75" : oee.oee >= 60 ? "#EF9F27" : "#E24B4A"
+        }}>{oee.oee}%</div>
+        <div style={{ fontSize: "13px", color: "#666", marginTop: "4px" }}>OEE Score</div>
+        <div style={{ fontSize: "11px", color: "#888", marginTop: "4px" }}>
+          {oee.oee >= 85 ? "World class" : oee.oee >= 60 ? "Average" : "Needs improvement"}
+        </div>
+      </div>
+
+      {/* Availability */}
+      <div style={{
+        flex: 1, minWidth: "140px", textAlign: "center",
+        background: "#E6F1FB", borderRadius: "12px", padding: "20px"
+      }}>
+        <div style={{ fontSize: "42px", fontWeight: 700, color: "#378ADD" }}>{oee.availability}%</div>
+        <div style={{ fontSize: "13px", color: "#666", marginTop: "4px" }}>Availability</div>
+        <div style={{ fontSize: "11px", color: "#888", marginTop: "4px" }}>
+          Uptime: {Math.round(oee.uptime_minutes / 60)}h {Math.round(oee.uptime_minutes % 60)}m
+        </div>
+      </div>
+
+      {/* Downtime */}
+      <div style={{
+        flex: 1, minWidth: "140px", textAlign: "center",
+        background: oee.total_downtime_minutes > 0 ? "#FAECE7" : "#E1F5EE",
+        borderRadius: "12px", padding: "20px"
+      }}>
+        <div style={{
+          fontSize: "42px", fontWeight: 700,
+          color: oee.total_downtime_minutes > 0 ? "#E24B4A" : "#1D9E75"
+        }}>
+          {Math.round(oee.total_downtime_minutes)}m
+        </div>
+        <div style={{ fontSize: "13px", color: "#666", marginTop: "4px" }}>Total Downtime</div>
+        <div style={{ fontSize: "11px", color: "#888", marginTop: "4px" }}>
+          {oee.downtime_events_count} event{oee.downtime_events_count !== 1 ? "s" : ""}
+        </div>
+      </div>
+
+      {/* Machine Status */}
+      <div style={{
+        flex: 1, minWidth: "140px", textAlign: "center",
+        background: oee.machine_currently_down ? "#FAECE7" : "#E1F5EE",
+        borderRadius: "12px", padding: "20px"
+      }}>
+        <div style={{ fontSize: "36px", marginBottom: "8px" }}>
+          {oee.machine_currently_down ? "🔴" : "🟢"}
+        </div>
+        <div style={{ fontSize: "13px", fontWeight: 600,
+          color: oee.machine_currently_down ? "#E24B4A" : "#1D9E75"
+        }}>
+          {oee.machine_currently_down ? "Machine Down" : "Machine Running"}
+        </div>
+      </div>
+
+    </div>
+
+    {/* Downtime events table */}
+    {downtime.length > 0 && (
+      <div>
+        <h3 style={{ fontSize: "14px", fontWeight: 600, margin: "0 0 8px" }}>Recent Downtime Events</h3>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <thead>
+            <tr style={{ background: "#F8F9FA" }}>
+              <th style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid #eee" }}>Start Time</th>
+              <th style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid #eee" }}>Duration</th>
+              <th style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid #eee" }}>Cause</th>
+              <th style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid #eee" }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {downtime.slice(0, 5).map((event, idx) => (
+              <tr key={idx} style={{ borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "8px 12px" }}>
+                  {new Date(event.start_time).toLocaleString()}
+                </td>
+                <td style={{ padding: "8px 12px" }}>
+                  {event.duration_minutes ? `${Math.round(event.duration_minutes)} min` : "Ongoing"}
+                </td>
+                <td style={{ padding: "8px 12px", color: "#666" }}>
+                  {event.cause?.substring(0, 40)}...
+                </td>
+                <td style={{ padding: "8px 12px" }}>
+                  <span style={{
+                    background: event.resolved ? "#E1F5EE" : "#FAECE7",
+                    color: event.resolved ? "#085041" : "#712B13",
+                    padding: "2px 8px", borderRadius: "99px", fontSize: "11px"
+                  }}>
+                    {event.resolved ? "Resolved" : "Active"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+)}
+
 
       {/* Real-time degradation chart */}
       <div style={{ background: "white", borderRadius: "12px", padding: "20px" }}>

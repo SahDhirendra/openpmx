@@ -9,6 +9,7 @@ import json
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends, UploadFile, File
 import pandas as pd
 import io
+from app.core.database import get_db, SensorReadingDB, AlertDB, DowntimeEventDB
 
 router = APIRouter()
 
@@ -140,6 +141,35 @@ async def ingest_reading(reading: SensorReading, db: Session = Depends(get_db)):
             bearing_affected=critical_bearing
         )
         db.add(db_alert)
+
+    # Downtime detection
+    # If health drops below 25 — machine is effectively down
+    DOWNTIME_THRESHOLD = 25
+    
+    # Check if there's an active downtime event
+    active_downtime = db.query(DowntimeEventDB).filter(
+        DowntimeEventDB.machine_id == reading.machine_id,
+        DowntimeEventDB.resolved == False
+    ).first()
+
+    if result["overall_health"] < DOWNTIME_THRESHOLD:
+        # Machine is down — create downtime event if not already active
+        if not active_downtime:
+            db_downtime = DowntimeEventDB(
+                machine_id=reading.machine_id,
+                start_time=reading.timestamp,
+                health_at_start=result["overall_health"],
+                cause=message,
+                resolved=False
+            )
+            db.add(db_downtime)
+    else:
+        # Machine is back up — resolve active downtime event
+        if active_downtime:
+            active_downtime.end_time = reading.timestamp
+            duration = (reading.timestamp - active_downtime.start_time).total_seconds() / 60
+            active_downtime.duration_minutes = round(duration, 2)
+            active_downtime.resolved = True
 
     db.commit()
 
@@ -358,4 +388,83 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
         "baseline_mean": predictor.baseline_mean.tolist(),
         "thresholds": predictor.dynamic_thresholds.tolist(),
         "latest_health": result
+    }
+
+@router.get("/downtime/{machine_id}")
+def get_downtime(machine_id: str, limit: int = 20, db: Session = Depends(get_db)):
+    """Get downtime events for a machine"""
+    events = db.query(DowntimeEventDB)\
+        .filter(DowntimeEventDB.machine_id == machine_id)\
+        .order_by(DowntimeEventDB.start_time.desc())\
+        .limit(limit)\
+        .all()
+
+    return {
+        "machine_id": machine_id,
+        "downtime_events": [
+            {
+                "id": e.id,
+                "start_time": e.start_time.isoformat(),
+                "end_time": e.end_time.isoformat() if e.end_time else None,
+                "duration_minutes": e.duration_minutes,
+                "cause": e.cause,
+                "health_at_start": e.health_at_start,
+                "resolved": e.resolved
+            }
+            for e in events
+        ]
+    }
+
+@router.get("/oee/{machine_id}")
+def get_oee(machine_id: str, hours: int = 24, db: Session = Depends(get_db)):
+    """Calculate OEE for a machine over the last N hours"""
+    from datetime import timedelta
+    
+    now = datetime.utcnow()
+    start_time = now - timedelta(hours=hours)
+    total_minutes = hours * 60
+
+    # Get all downtime events in the period
+    downtime_events = db.query(DowntimeEventDB).filter(
+        DowntimeEventDB.machine_id == machine_id,
+        DowntimeEventDB.start_time >= start_time
+    ).all()
+
+    # Calculate total downtime
+    total_downtime = sum(
+        e.duration_minutes for e in downtime_events
+        if e.duration_minutes is not None
+    )
+
+    # Add ongoing downtime if machine is currently down
+    active = db.query(DowntimeEventDB).filter(
+        DowntimeEventDB.machine_id == machine_id,
+        DowntimeEventDB.resolved == False
+    ).first()
+
+    if active:
+        ongoing = (now - active.start_time).total_seconds() / 60
+        total_downtime += ongoing
+
+    # Calculate OEE components
+    uptime_minutes = max(total_minutes - total_downtime, 0)
+    availability = round((uptime_minutes / total_minutes) * 100, 1)
+
+    # For now performance and quality default to 100%
+    # These can be connected to production data later
+    performance = 100.0
+    quality = 100.0
+    oee = round((availability / 100) * (performance / 100) * (quality / 100) * 100, 1)
+
+    return {
+        "machine_id": machine_id,
+        "period_hours": hours,
+        "oee": oee,
+        "availability": availability,
+        "performance": performance,
+        "quality": quality,
+        "total_downtime_minutes": round(total_downtime, 1),
+        "uptime_minutes": round(uptime_minutes, 1),
+        "downtime_events_count": len(downtime_events),
+        "machine_currently_down": active is not None
     }
