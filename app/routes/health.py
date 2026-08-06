@@ -6,6 +6,9 @@ from app.models.sensor import SensorReading, HealthResponse
 from app.core.predictor import predictor
 from app.core.database import get_db, SensorReadingDB, AlertDB
 import json
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends, UploadFile, File
+import pandas as pd
+import io
 
 router = APIRouter()
 
@@ -271,3 +274,88 @@ def train_predictor():
     except Exception as e:
         print(f"Training error: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/upload-csv")
+async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """
+    Upload a CSV file with sensor data.
+    Auto-detects sensor columns and trains model on manufacturer's own data.
+    """
+    # Read the uploaded file
+    contents = await file.read()
+    
+    try:
+        df = pd.read_csv(io.StringIO(contents.decode('utf-8')))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid CSV file: {str(e)}")
+
+    # Check minimum rows
+    if len(df) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail="CSV needs at least 10 rows of data"
+        )
+
+    # Auto-detect numeric sensor columns
+    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+    
+    # Remove timestamp-like columns
+    sensor_cols = [c for c in numeric_cols if not any(
+        t in c.lower() for t in ['time', 'date', 'index', 'id', 'unnamed']
+    )]
+
+    if len(sensor_cols) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No numeric sensor columns found in CSV"
+        )
+
+    # Limit to 4 columns for now
+    sensor_cols = sensor_cols[:4]
+
+    # Train model on uploaded data
+    sensor_data = df[sensor_cols].dropna().values
+
+    # Calculate baseline from first 50% of data
+    split = max(int(len(sensor_data) * 0.5), 5)
+    baseline = sensor_data[:split]
+
+    baseline_mean = baseline.mean(axis=0)
+    baseline_std = baseline.std(axis=0)
+    dynamic_thresholds = baseline_mean + 3 * baseline_std
+
+    # Pad to 4 sensors if less than 4 columns
+    while len(baseline_mean) < 4:
+        baseline_mean = list(baseline_mean) + [baseline_mean[0]]
+        baseline_std = list(baseline_std) + [baseline_std[0]]
+        dynamic_thresholds = list(dynamic_thresholds) + [dynamic_thresholds[0]]
+
+    import numpy as np
+    predictor.baseline_mean = np.array(baseline_mean[:4])
+    predictor.baseline_std = np.array(baseline_std[:4])
+    predictor.dynamic_thresholds = np.array(dynamic_thresholds[:4])
+    predictor.is_trained = True
+
+    # Return analysis results
+    latest = sensor_data[-1]
+    while len(latest) < 4:
+        latest = list(latest) + [latest[0]]
+    latest = latest[:4]
+
+    result = predictor.predict(
+        bearing1=float(latest[0]),
+        bearing2=float(latest[1]),
+        bearing3=float(latest[2]),
+        bearing4=float(latest[3])
+    )
+
+    return {
+        "status": "trained",
+        "message": f"Model trained on {len(sensor_data)} rows of your data",
+        "columns_detected": sensor_cols,
+        "total_rows": len(df),
+        "training_rows": split,
+        "baseline_mean": predictor.baseline_mean.tolist(),
+        "thresholds": predictor.dynamic_thresholds.tolist(),
+        "latest_health": result
+    }

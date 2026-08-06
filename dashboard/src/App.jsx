@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react"
 import axios from "axios"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
 const WS_URL = API_URL.replace("http", "ws").replace("https", "wss")
@@ -61,11 +60,13 @@ function HealthCard({ name, health, status, rms, threshold }) {
 export default function App() {
   const [health, setHealth] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [csvLoading, setCsvLoading] = useState(false)
   const [trained, setTrained] = useState(false)
   const [error, setError] = useState(null)
   const [connected, setConnected] = useState(false)
   const [history, setHistory] = useState([])
   const [lastUpdate, setLastUpdate] = useState(null)
+  const [csvResult, setCsvResult] = useState(null)
   const wsRef = useRef(null)
   const pingRef = useRef(null)
 
@@ -91,7 +92,6 @@ export default function App() {
           b4: r.bearing4_health,
         }))
         setHistory(historyData)
-        console.log("History loaded:", historyData.length, "readings")
       }
     } catch (e) {
       console.error("Failed to load history:", e)
@@ -118,7 +118,6 @@ export default function App() {
       ws.onopen = () => {
         setConnected(true)
         setError(null)
-        console.log("WebSocket connected!")
         pingRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send("ping")
@@ -128,12 +127,9 @@ export default function App() {
 
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data)
-
         if (data.type === "connected") {
           setTrained(data.predictor_trained)
-          if (data.predictor_trained) {
-            loadHistory()
-          }
+          if (data.predictor_trained) loadHistory()
         } else if (data.type === "reading") {
           setHealth(data)
           setLastUpdate(new Date().toLocaleTimeString())
@@ -146,10 +142,7 @@ export default function App() {
             b3: data.bearings.bearing3.health_score,
             b4: data.bearings.bearing4.health_score,
           }
-          setHistory(prev => {
-            const updated = [...prev, newPoint]
-            return updated.slice(-50)
-          })
+          setHistory(prev => [...prev, newPoint].slice(-50))
         } else if (data.type === "pong") {
           console.log("Ping/pong OK")
         }
@@ -161,9 +154,8 @@ export default function App() {
         setTimeout(connectWebSocket, 3000)
       }
 
-      ws.onerror = () => {
-        setConnected(false)
-      }
+      ws.onerror = () => setConnected(false)
+
     } catch (e) {
       setConnected(false)
     }
@@ -180,6 +172,30 @@ export default function App() {
       setError("Training failed. Check your backend.")
     }
     setLoading(false)
+  }
+
+  const handleCSVUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    setCsvLoading(true)
+    setError(null)
+    setCsvResult(null)
+
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      const res = await axios.post(`${API_URL}/upload-csv`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      })
+      setTrained(true)
+      setCsvResult(res.data)
+      await loadHistory()
+    } catch (e) {
+      setError(e.response?.data?.detail || "CSV upload failed. Check your file format.")
+    }
+    setCsvLoading(false)
   }
 
   const runPrediction = async (scenario) => {
@@ -210,15 +226,30 @@ export default function App() {
             Open-source predictive maintenance platform
           </p>
         </div>
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           {!trained && (
-            <button onClick={trainModel} disabled={loading} style={{
-              background: "#1D9E75", color: "white", border: "none",
-              padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
-              fontSize: "14px", fontWeight: 500
-            }}>
-              {loading ? "Training..." : "Train Model"}
-            </button>
+            <>
+              <button onClick={trainModel} disabled={loading} style={{
+                background: "#1D9E75", color: "white", border: "none",
+                padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+                fontSize: "14px", fontWeight: 500
+              }}>
+                {loading ? "Training..." : "Train on NASA Data"}
+              </button>
+              <label style={{
+                background: "#378ADD", color: "white", border: "none",
+                padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+                fontSize: "14px", fontWeight: 500, display: "inline-block"
+              }}>
+                {csvLoading ? "Uploading..." : "📂 Upload Your CSV"}
+                <input
+                  type="file"
+                  accept=".csv"
+                  style={{ display: "none" }}
+                  onChange={handleCSVUpload}
+                />
+              </label>
+            </>
           )}
           {trained && (
             <>
@@ -240,6 +271,26 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {/* CSV Upload Result */}
+      {csvResult && (
+        <div style={{
+          background: "#E1F5EE", border: "2px solid #1D9E75",
+          borderRadius: "8px", padding: "16px", marginBottom: "16px"
+        }}>
+          <div style={{ fontWeight: 600, color: "#085041", marginBottom: "8px" }}>
+            ✅ Model trained on your data!
+          </div>
+          <div style={{ fontSize: "13px", color: "#085041" }}>
+            <div>📊 Detected columns: <strong>{csvResult.columns_detected?.join(", ")}</strong></div>
+            <div>📁 Total rows: <strong>{csvResult.total_rows}</strong></div>
+            <div>🎯 Training rows: <strong>{csvResult.training_rows}</strong></div>
+            <div style={{ marginTop: "8px" }}>
+              Overall health: <strong>{csvResult.latest_health?.overall_health}/100</strong>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error banner */}
       {error && (
@@ -352,7 +403,6 @@ export default function App() {
         {history.length > 0 ? (
           <div style={{ width: "100%", overflowX: "auto" }}>
             <svg width="100%" height="300" viewBox={`0 0 ${Math.max(history.length * 20, 600)} 300`}>
-              {/* Grid lines */}
               {[0, 25, 50, 75, 100].map(v => (
                 <g key={v}>
                   <line
@@ -363,8 +413,6 @@ export default function App() {
                   <text x="35" y={264 - v * 2.2} fontSize="10" fill="#888" textAnchor="end">{v}</text>
                 </g>
               ))}
-
-              {/* Lines for each bearing */}
               {["b1", "b2", "b3", "b4"].map((key, idx) => {
                 const colors = ["#1D9E75", "#378ADD", "#E24B4A", "#EF9F27"]
                 const points = history.map((h, i) => `${40 + i * 20},${260 - (h[key] || 0) * 2.2}`).join(" ")
@@ -378,14 +426,12 @@ export default function App() {
                   />
                 )
               })}
-
-              {/* Legend */}
               {["Bearing 1", "Bearing 2", "Bearing 3", "Bearing 4"].map((name, idx) => {
                 const colors = ["#1D9E75", "#378ADD", "#E24B4A", "#EF9F27"]
                 return (
                   <g key={name}>
-                    <line x1={50 + idx * 100} y1="15" x2={75 + idx * 100} y2="15" stroke={colors[idx]} strokeWidth="2" />
-                    <text x={80 + idx * 100} y="19" fontSize="11" fill="#666">{name}</text>
+                    <line x1={50 + idx * 110} y1="15" x2={75 + idx * 110} y2="15" stroke={colors[idx]} strokeWidth="2" />
+                    <text x={80 + idx * 110} y="19" fontSize="11" fill="#666">{name}</text>
                   </g>
                 )
               })}
@@ -393,7 +439,7 @@ export default function App() {
           </div>
         ) : (
           <div style={{ height: "300px", display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: "14px" }}>
-            {trained ? `History loaded: ${history.length} readings — send new readings to see chart` : "Train the model first, then send readings"}
+            {trained ? "Send sensor readings to see real-time chart" : "Train the model first, then send readings"}
           </div>
         )}
       </div>
