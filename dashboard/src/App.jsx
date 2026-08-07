@@ -152,6 +152,36 @@ const sendTestAlert = async () => {
     setError("Failed to send test alert. Check your email configuration.")
   }
 }
+
+const generateWorkOrder = async () => {
+  if (!health) {
+    setError("Run a prediction first before generating a work order")
+    return
+  }
+  try {
+    const readings = {
+      machine_id: health.machine_id || "machine_001",
+      timestamp: health.timestamp || new Date().toISOString(),
+      bearing1_rms: health.bearings?.bearing1?.rms || 0.13,
+      bearing2_rms: health.bearings?.bearing2?.rms || 0.13,
+      bearing3_rms: health.bearings?.bearing3?.rms || 0.13,
+      bearing4_rms: health.bearings?.bearing4?.rms || 0.13,
+    }
+    const res = await axios.post(`${API_URL}/generate-work-order`, readings, {
+      responseType: "blob"
+    })
+    // Download PDF
+    const url = window.URL.createObjectURL(new Blob([res.data]))
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", `work-order-${Date.now()}.pdf`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  } catch (e) {
+    setError("Failed to generate work order. Make sure model is trained.")
+  }
+}
   
   const checkHealth = async () => {
     try {
@@ -319,6 +349,15 @@ const sendTestAlert = async () => {
       </button>
     </>
   )}
+
+<button onClick={generateWorkOrder} disabled={loading} style={{
+  background: "#7F77DD", color: "white", border: "none",
+  padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+  fontSize: "14px", fontWeight: 500
+}}>
+  📋 Generate Work Order
+</button>
+
   {/* Alert Settings — always visible */}
   <button onClick={() => setShowEmailConfig(!showEmailConfig)} style={{
     background: "white", color: "#555", border: "1px solid #ddd",

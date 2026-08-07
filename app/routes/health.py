@@ -12,6 +12,9 @@ import io
 from app.core.database import get_db, SensorReadingDB, AlertDB, DowntimeEventDB
 from app.core.notifications import send_alert_email, send_daily_summary_email
 from typing import List
+from app.core.work_order import generate_work_order
+from fastapi.responses import FileResponse
+import os
 
 router = APIRouter()
 
@@ -574,3 +577,40 @@ async def test_alert(email: str):
         return {"status": "sent", "email": email}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/generate-work-order")
+async def create_work_order(reading: SensorReading):
+    """Generate a PDF maintenance work order"""
+    if not predictor.is_trained:
+        raise HTTPException(status_code=503, detail="Predictor not trained yet")
+
+    result = predictor.predict(
+        bearing1=reading.bearing1_rms,
+        bearing2=reading.bearing2_rms,
+        bearing3=reading.bearing3_rms,
+        bearing4=reading.bearing4_rms
+    )
+
+    if result["overall_health"] >= 75:
+        message = "All bearings healthy. No action required."
+    elif result["overall_health"] >= 50:
+        message = "Some bearings showing wear. Schedule inspection soon."
+    elif result["overall_health"] >= 25:
+        message = "Warning! Bearing degradation detected. Inspect immediately."
+    else:
+        message = "Critical! Imminent bearing failure. Stop machine now."
+
+    pdf_path = generate_work_order(
+        machine_id=reading.machine_id,
+        overall_health=result["overall_health"],
+        message=message,
+        bearings=result["bearings"],
+        timestamp=reading.timestamp.isoformat()
+    )
+
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=os.path.basename(pdf_path)
+    )
