@@ -84,7 +84,12 @@ export default function App() {
 
 
 const [emailSaved, setEmailSaved] = useState(false)
-
+const [showCostCalc, setShowCostCalc] = useState(false)
+const [costConfig, setCostConfig] = useState({
+  hourly_rate: 1000,
+  repair_cost: 5000
+})
+const [costSavings, setCostSavings] = useState(null)
   useEffect(() => {
     connectWebSocket()
     checkHealth()
@@ -183,6 +188,31 @@ const generateWorkOrder = async () => {
   }
 }
   
+const calculateSavings = async () => {
+  try {
+    const res = await axios.get(`${API_URL}/oee/machine_001`)
+    const oeeData = res.data
+
+    // Calculate savings
+    const downtimeHours = oeeData.total_downtime_minutes / 60
+    const downtimeCost = downtimeHours * costConfig.hourly_rate
+    const alertsCount = oeeData.downtime_events_count
+    const repairCosts = alertsCount * costConfig.repair_cost
+    const totalSavings = downtimeCost + repairCosts
+
+    setCostSavings({
+      downtime_hours: downtimeHours.toFixed(1),
+      downtime_cost: downtimeCost.toFixed(0),
+      alerts_count: alertsCount,
+      repair_costs: repairCosts.toFixed(0),
+      total_savings: totalSavings.toFixed(0),
+      oee: oeeData.oee
+    })
+  } catch (e) {
+    setError("Failed to calculate savings. Make sure model is trained.")
+  }
+}
+
   const checkHealth = async () => {
     try {
       const res = await axios.get(`${API_URL}/health`)
@@ -358,6 +388,14 @@ const generateWorkOrder = async () => {
   📋 Generate Work Order
 </button>
 
+<button onClick={() => setShowCostCalc(!showCostCalc)} style={{
+  background: "white", color: "#555", border: "1px solid #ddd",
+  padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+  fontSize: "14px", fontWeight: 500
+}}>
+  💰 Cost Savings
+</button>
+
   {/* Alert Settings — always visible */}
   <button onClick={() => setShowEmailConfig(!showEmailConfig)} style={{
     background: "white", color: "#555", border: "1px solid #ddd",
@@ -367,6 +405,8 @@ const generateWorkOrder = async () => {
     ⚙️ Alert Settings
   </button>
 </div>
+
+
 
       {/* CSV Upload Result */}
       {csvResult && (
@@ -524,6 +564,133 @@ const generateWorkOrder = async () => {
       <a href="https://myaccount.google.com/apppasswords" target="_blank" style={{ color: "#378ADD" }}> myaccount.google.com/apppasswords</a>. 
       Remove spaces from the 16-character password before entering.
     </div>
+  </div>
+)}
+
+{/* Cost Calculator Panel */}
+{showCostCalc && (
+  <div style={{
+    background: "white", border: "1px solid #ddd",
+    borderRadius: "12px", padding: "20px", marginBottom: "16px"
+  }}>
+    <h2 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 600 }}>
+      💰 Maintenance Cost Savings Calculator
+    </h2>
+
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+      <div>
+        <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "4px" }}>
+          Machine Hourly Rate ($/hr)
+        </label>
+        <input
+          type="number"
+          value={costConfig.hourly_rate}
+          onChange={e => setCostConfig({...costConfig, hourly_rate: parseFloat(e.target.value)})}
+          style={{
+            width: "100%", padding: "8px 12px", borderRadius: "6px",
+            border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+          }}
+        />
+        <span style={{ fontSize: "11px", color: "#888" }}>Cost per hour when machine is down</span>
+      </div>
+      <div>
+        <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "4px" }}>
+          Average Repair Cost ($)
+        </label>
+        <input
+          type="number"
+          value={costConfig.repair_cost}
+          onChange={e => setCostConfig({...costConfig, repair_cost: parseFloat(e.target.value)})}
+          style={{
+            width: "100%", padding: "8px 12px", borderRadius: "6px",
+            border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+          }}
+        />
+        <span style={{ fontSize: "11px", color: "#888" }}>Average cost to repair a failed component</span>
+      </div>
+    </div>
+
+    <button onClick={calculateSavings} style={{
+      background: "#1D9E75", color: "white", border: "none",
+      padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+      fontSize: "14px", fontWeight: 500, marginBottom: "16px"
+    }}>
+      Calculate Savings
+    </button>
+
+    {costSavings && (
+      <div>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "16px" }}>
+
+          <div style={{
+            flex: 1, minWidth: "160px", background: "#E1F5EE",
+            borderRadius: "12px", padding: "16px", textAlign: "center"
+          }}>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: "#1D9E75" }}>
+              ${parseInt(costSavings.total_savings).toLocaleString()}
+            </div>
+            <div style={{ fontSize: "13px", color: "#085041", marginTop: "4px" }}>
+              Total Savings
+            </div>
+          </div>
+
+          <div style={{
+            flex: 1, minWidth: "160px", background: "#E6F1FB",
+            borderRadius: "12px", padding: "16px", textAlign: "center"
+          }}>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: "#378ADD" }}>
+              ${parseInt(costSavings.downtime_cost).toLocaleString()}
+            </div>
+            <div style={{ fontSize: "13px", color: "#0C447C", marginTop: "4px" }}>
+              Downtime Cost Prevented
+            </div>
+            <div style={{ fontSize: "11px", color: "#888" }}>
+              {costSavings.downtime_hours} hours × ${costConfig.hourly_rate}/hr
+            </div>
+          </div>
+
+          <div style={{
+            flex: 1, minWidth: "160px", background: "#EEEDFE",
+            borderRadius: "12px", padding: "16px", textAlign: "center"
+          }}>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: "#7F77DD" }}>
+              ${parseInt(costSavings.repair_costs).toLocaleString()}
+            </div>
+            <div style={{ fontSize: "13px", color: "#3C3489", marginTop: "4px" }}>
+              Repair Costs Prevented
+            </div>
+            <div style={{ fontSize: "11px", color: "#888" }}>
+              {costSavings.alerts_count} alerts × ${costConfig.repair_cost}
+            </div>
+          </div>
+
+          <div style={{
+            flex: 1, minWidth: "160px", background: "#FAEEDA",
+            borderRadius: "12px", padding: "16px", textAlign: "center"
+          }}>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: "#EF9F27" }}>
+              {costSavings.oee}%
+            </div>
+            <div style={{ fontSize: "13px", color: "#633806", marginTop: "4px" }}>
+              Current OEE
+            </div>
+            <div style={{ fontSize: "11px", color: "#888" }}>
+              {costSavings.oee >= 85 ? "World class" : costSavings.oee >= 60 ? "Average" : "Needs improvement"}
+            </div>
+          </div>
+
+        </div>
+
+        <div style={{
+          background: "#F8F9FA", borderRadius: "8px",
+          padding: "12px 16px", fontSize: "13px", color: "#666"
+        }}>
+          💡 <strong>ROI Insight:</strong> OpenPMX detected {costSavings.alerts_count} critical 
+          events and prevented an estimated <strong>${parseInt(costSavings.total_savings).toLocaleString()}</strong> in 
+          downtime and repair costs. At $0 licensing cost, your ROI is immediate.
+        </div>
+      </div>
+    )}
   </div>
 )}
 
