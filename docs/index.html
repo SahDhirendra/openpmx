@@ -31,14 +31,14 @@
     .stat-number { font-size: 40px; font-weight: 700; color: #1D9E75; }
     .stat-label { font-size: 14px; color: #777; margin-top: 4px; }
 
-    /* Problem */
+    /* Sections */
     .section { padding: 80px 40px; max-width: 1100px; margin: 0 auto; }
     .section-tag { display: inline-block; background: #E1F5EE; color: #085041; padding: 4px 14px; border-radius: 99px; font-size: 13px; font-weight: 500; margin-bottom: 16px; }
     .section h2 { font-size: 36px; font-weight: 700; margin-bottom: 16px; }
     .section p { font-size: 18px; color: #555; max-width: 700px; margin-bottom: 40px; }
 
     /* Feature cards */
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 40px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-top: 40px; }
     .card { background: white; border: 1px solid #eee; border-radius: 16px; padding: 28px; }
     .card-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 16px; }
     .card h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
@@ -63,6 +63,15 @@
     .badge-critical { background: #FAECE7; color: #712B13; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; }
     .badge-warning { background: #FAEEDA; color: #633806; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; }
 
+    /* Architecture */
+    .arch-section { background: #f8f9fa; padding: 80px 40px; }
+    .arch-inner { max-width: 1100px; margin: 0 auto; }
+    .arch-flow { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 40px; }
+    .arch-box { background: white; border: 1px solid #eee; border-radius: 12px; padding: 20px 24px; text-align: center; min-width: 160px; }
+    .arch-box h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .arch-box p { font-size: 12px; color: #666; }
+    .arch-arrow { font-size: 24px; color: #1D9E75; }
+
     /* CTA */
     .cta { background: #1D9E75; padding: 80px 40px; text-align: center; }
     .cta h2 { font-size: 36px; font-weight: 700; color: white; margin-bottom: 16px; }
@@ -85,6 +94,7 @@
     <a href="#features">Features</a>
     <a href="#how-it-works">How it works</a>
     <a href="#results">Results</a>
+    <a href="#architecture">Architecture</a>
     <a href="https://github.com/SahDhirendra/openpmx">GitHub</a>
     <a href="https://openpmx-frontend.onrender.com" class="nav-btn">Try Live Demo</a>
   </div>
@@ -92,7 +102,7 @@
 
 <!-- Hero -->
 <section class="hero">
-  <div class="hero-badge">Free & Open Source</div>
+  <div class="hero-badge">Free & Open Source — MIT License</div>
   <h1>Predict machine failures<br><span>before they happen</span></h1>
   <p>OpenPMX gives small and mid-sized manufacturers the same AI-powered predictive maintenance capabilities that Fortune 500 companies pay $100,000/year for — completely free.</p>
   <div class="hero-buttons">
@@ -117,7 +127,7 @@
   </div>
   <div class="stat">
     <div class="stat-number">1 cmd</div>
-    <div class="stat-label">To deploy anywhere</div>
+    <div class="stat-label">docker-compose up</div>
   </div>
 </div>
 
@@ -130,32 +140,62 @@
     <div class="card">
       <div class="card-icon" style="background:#E1F5EE">🔍</div>
       <h3>Anomaly Detection</h3>
-      <p>Detects abnormal machine behavior the moment it starts — not after it becomes a crisis.</p>
+      <p>Detects abnormal machine behavior the moment it starts using statistical ML trained on your own sensor data.</p>
     </div>
     <div class="card">
       <div class="card-icon" style="background:#E6F1FB">⏱️</div>
       <h3>Remaining Useful Life</h3>
-      <p>Predicts how many days before a component reaches its failure threshold.</p>
+      <p>Predicts how many days before a component reaches its failure threshold so you can plan maintenance.</p>
     </div>
     <div class="card">
       <div class="card-icon" style="background:#FAEEDA">🏥</div>
       <h3>Health Scoring</h3>
-      <p>Every machine gets a 0–100 health score. No technical knowledge needed to read it.</p>
+      <p>Every machine gets a real-time score from 0 to 100. No technical knowledge needed to read it.</p>
     </div>
     <div class="card">
       <div class="card-icon" style="background:#FAECE7">🚨</div>
       <h3>Instant Alerts</h3>
-      <p>Critical alerts trigger automatically when a machine needs immediate attention.</p>
+      <p>Critical alerts trigger automatically via WebSocket and email when a machine needs immediate attention.</p>
     </div>
     <div class="card">
-      <div class="card-icon" style="background:#E1F5EE">🔒</div>
-      <h3>On-Premise Ready</h3>
-      <p>Run entirely on your own network. Your sensor data never leaves your facility.</p>
+      <div class="card-icon" style="background:#E1F5EE">📊</div>
+      <h3>OEE Calculator</h3>
+      <p>Automatically tracks Overall Equipment Effectiveness — Availability, Performance, and Quality in real time.</p>
     </div>
     <div class="card">
-      <div class="card-icon" style="background:#EEEDFE">⚡</div>
-      <h3>One Command Deploy</h3>
-      <p>docker-compose up — that's it. Full platform running in minutes on any server.</p>
+      <div class="card-icon" style="background:#EEEDFE">📉</div>
+      <h3>Downtime Tracker</h3>
+      <p>Logs every downtime event automatically with timestamp, duration, and root cause for reporting.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#E6F1FB">📧</div>
+      <h3>Email Notifications</h3>
+      <p>Configurable email alerts to your maintenance team with 1-hour cooldown to prevent spam.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#FAEEDA">📋</div>
+      <h3>Work Order Generator</h3>
+      <p>Auto-generates PDF maintenance work orders with recommended actions, sign-off fields, and priority level.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#E1F5EE">💰</div>
+      <h3>Cost Savings Calculator</h3>
+      <p>Shows the dollar value of prevented failures based on your machine hourly rate and repair costs.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#FAECE7">📂</div>
+      <h3>CSV Upload</h3>
+      <p>Upload any sensor data CSV — temperature, pressure, vibration, current. Platform auto-detects columns.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#EEEDFE">🔌</div>
+      <h3>Edge Agent</h3>
+      <p>Raspberry Pi agent reads from PLCs via OPC-UA or Modbus and sends live data to the platform.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#E1F5EE">📺</div>
+      <h3>TV Kiosk Mode</h3>
+      <p>Auto-starts on Raspberry Pi boot and displays fullscreen dashboard on any TV or monitor.</p>
     </div>
   </div>
 </section>
@@ -171,23 +211,23 @@
     <div class="steps">
       <div class="step">
         <div class="step-num">1</div>
-        <h3>Connect sensors</h3>
-        <p>Your existing vibration, temperature, or pressure sensors send data to OpenPMX.</p>
+        <h3>Connect or upload data</h3>
+        <p>Connect a Raspberry Pi to your PLC or upload a CSV of existing sensor data.</p>
       </div>
       <div class="step">
         <div class="step-num">2</div>
         <h3>Train on your data</h3>
-        <p>OpenPMX learns what "normal" looks like for your specific machines.</p>
+        <p>OpenPMX learns what normal looks like for your specific machines automatically.</p>
       </div>
       <div class="step">
         <div class="step-num">3</div>
         <h3>Get health scores</h3>
-        <p>Every machine gets a real-time score from 0 to 100.</p>
+        <p>Every machine gets a real-time score from 0 to 100 updated every 10 seconds.</p>
       </div>
       <div class="step">
         <div class="step-num">4</div>
         <h3>Act before failure</h3>
-        <p>Schedule maintenance when it's convenient — not when machines break down.</p>
+        <p>Get email alerts, generate work orders, and schedule maintenance before breakdown.</p>
       </div>
     </div>
   </div>
@@ -224,17 +264,49 @@
         <td>Bearing 3</td>
         <td>0 / 100</td>
         <td><span class="badge-critical">Critical</span></td>
-        <td>✓ Correctly identified failure — 908% vibration increase</td>
+        <td>✓ Failure detected — 908% vibration increase</td>
       </tr>
       <tr>
         <td>Bearing 4</td>
         <td>39 / 100</td>
         <td><span class="badge-warning">Warning</span></td>
-        <td>Correctly flagged degradation weeks before failure</td>
+        <td>Degradation flagged weeks before failure</td>
       </tr>
     </tbody>
   </table>
 </section>
+
+<!-- Architecture -->
+<div class="arch-section" id="architecture">
+  <div class="arch-inner">
+    <div style="text-align:center">
+      <div class="section-tag">Architecture</div>
+      <h2 style="font-size:36px;font-weight:700;margin-bottom:16px">Full closed-loop system</h2>
+      <p style="font-size:18px;color:#555;max-width:600px;margin:0 auto">From PLC sensors to TV dashboard — fully automated.</p>
+    </div>
+    <div class="arch-flow">
+      <div class="arch-box">
+        <h4>PLC / Sensors</h4>
+        <p>Allen-Bradley · Siemens · Modbus · Any brand</p>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">
+        <h4>Raspberry Pi</h4>
+        <p>Edge agent · OPC-UA · EtherNet/IP · Auto-reconnect</p>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">
+        <h4>FastAPI Backend</h4>
+        <p>ML scoring · SQLite · WebSocket · Email alerts</p>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">
+        <h4>React Dashboard</h4>
+        <p>Real-time · TV kiosk · OEE · Work orders</p>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- CTA -->
 <section class="cta">
@@ -249,7 +321,8 @@
 <!-- Footer -->
 <footer>
   <p>OpenPMX — Open-source predictive maintenance for US manufacturers</p>
-  <p style="margin-top:8px">Built by <a href="https://linkedin.com/in/dhirendrasah">Dhirendra K. Sah</a> · <a href="https://github.com/SahDhirendra/openpmx">GitHub</a> · MIT License</p>
+  <p style="margin-top:8px">Built by <a href="https://linkedin.com/in/dhirendrasah">Dhirendra K. Sah</a> · Controls & Automation Engineer | MS Mechatronics, NDSU</p>
+  <p style="margin-top:8px"><a href="https://github.com/SahDhirendra/openpmx">GitHub</a> · <a href="https://openpmx-frontend.onrender.com">Live Demo</a> · MIT License</p>
 </footer>
 
 </body>
