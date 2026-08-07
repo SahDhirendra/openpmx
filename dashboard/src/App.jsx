@@ -72,6 +72,19 @@ export default function App() {
   const wsRef = useRef(null)
   const pingRef = useRef(null)
 
+  const [showEmailConfig, setShowEmailConfig] = useState(false)
+  const [emailConfig, setEmailConfig] = useState({
+  emails: "",
+  smtp_server: "smtp.gmail.com",
+  smtp_port: 465,
+  smtp_username: "",
+  smtp_password: "",
+  use_ssl: true
+})
+
+
+const [emailSaved, setEmailSaved] = useState(false)
+
   useEffect(() => {
     connectWebSocket()
     checkHealth()
@@ -110,6 +123,35 @@ export default function App() {
       console.error("Failed to load OEE:", e)
     }
   }
+
+  const saveEmailConfig = async () => {
+  try {
+    const emails = emailConfig.emails.split(",").map(e => e.trim()).filter(e => e)
+    await axios.post(`${API_URL}/configure-alerts`, {
+      ...emailConfig,
+      emails,
+      smtp_port: parseInt(emailConfig.smtp_port)
+    })
+    setEmailSaved(true)
+    setTimeout(() => setEmailSaved(false), 3000)
+  } catch (e) {
+    setError("Failed to save email configuration")
+  }
+}
+
+const sendTestAlert = async () => {
+  try {
+    const emails = emailConfig.emails.split(",").map(e => e.trim()).filter(e => e)
+    if (emails.length === 0) {
+      setError("Please enter at least one email address")
+      return
+    }
+    await axios.post(`${API_URL}/test-alert?email=${emails[0]}`)
+    alert("Test alert sent! Check your inbox.")
+  } catch (e) {
+    setError("Failed to send test alert. Check your email configuration.")
+  }
+}
   
   const checkHealth = async () => {
     try {
@@ -234,58 +276,58 @@ export default function App() {
     <div style={{ fontFamily: "system-ui, sans-serif", background: "#F8F9FA", minHeight: "100vh", padding: "24px" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: "24px", fontWeight: 700 }}>OpenPMX</h1>
-          <p style={{ margin: "4px 0 0", color: "#666", fontSize: "14px" }}>
-            Open-source predictive maintenance platform
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          {!trained && (
-            <>
-              <button onClick={trainModel} disabled={loading} style={{
-                background: "#1D9E75", color: "white", border: "none",
-                padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
-                fontSize: "14px", fontWeight: 500
-              }}>
-                {loading ? "Training..." : "Train on NASA Data"}
-              </button>
-              <label style={{
-                background: "#378ADD", color: "white", border: "none",
-                padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
-                fontSize: "14px", fontWeight: 500, display: "inline-block"
-              }}>
-                {csvLoading ? "Uploading..." : "📂 Upload Your CSV"}
-                <input
-                  type="file"
-                  accept=".csv"
-                  style={{ display: "none" }}
-                  onChange={handleCSVUpload}
-                />
-              </label>
-            </>
-          )}
-          {trained && (
-            <>
-              <button onClick={() => runPrediction("healthy")} disabled={loading} style={{
-                background: "#1D9E75", color: "white", border: "none",
-                padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
-                fontSize: "14px", fontWeight: 500
-              }}>
-                {loading ? "Loading..." : "Simulate Healthy"}
-              </button>
-              <button onClick={() => runPrediction("failure")} disabled={loading} style={{
-                background: "#E24B4A", color: "white", border: "none",
-                padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
-                fontSize: "14px", fontWeight: 500
-              }}>
-                {loading ? "Loading..." : "Simulate Failure"}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+<div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+  {!trained && (
+    <>
+      <button onClick={trainModel} disabled={loading} style={{
+        background: "#1D9E75", color: "white", border: "none",
+        padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+        fontSize: "14px", fontWeight: 500
+      }}>
+        {loading ? "Training..." : "Train on NASA Data"}
+      </button>
+      <label style={{
+        background: "#378ADD", color: "white", border: "none",
+        padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+        fontSize: "14px", fontWeight: 500, display: "inline-block"
+      }}>
+        {csvLoading ? "Uploading..." : "📂 Upload Your CSV"}
+        <input
+          type="file"
+          accept=".csv"
+          style={{ display: "none" }}
+          onChange={handleCSVUpload}
+        />
+      </label>
+    </>
+  )}
+  {trained && (
+    <>
+      <button onClick={() => runPrediction("healthy")} disabled={loading} style={{
+        background: "#1D9E75", color: "white", border: "none",
+        padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+        fontSize: "14px", fontWeight: 500
+      }}>
+        {loading ? "Loading..." : "Simulate Healthy"}
+      </button>
+      <button onClick={() => runPrediction("failure")} disabled={loading} style={{
+        background: "#E24B4A", color: "white", border: "none",
+        padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+        fontSize: "14px", fontWeight: 500
+      }}>
+        {loading ? "Loading..." : "Simulate Failure"}
+      </button>
+    </>
+  )}
+  {/* Alert Settings — always visible */}
+  <button onClick={() => setShowEmailConfig(!showEmailConfig)} style={{
+    background: "white", color: "#555", border: "1px solid #ddd",
+    padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+    fontSize: "14px", fontWeight: 500
+  }}>
+    ⚙️ Alert Settings
+  </button>
+</div>
 
       {/* CSV Upload Result */}
       {csvResult && (
@@ -307,7 +349,146 @@ export default function App() {
         </div>
       )}
 
+      
+      
+      
       {/* Error banner */}
+{/* Email Configuration Panel */}
+{showEmailConfig && (
+  <div style={{
+    background: "white", border: "1px solid #ddd",
+    borderRadius: "12px", padding: "20px", marginBottom: "16px"
+  }}>
+    <h2 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 600 }}>
+      ⚙️ Alert Email Configuration
+    </h2>
+
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+      
+      <div style={{ gridColumn: "1 / -1" }}>
+        <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "4px" }}>
+          Recipient Emails (comma separated)
+        </label>
+        <input
+          type="text"
+          placeholder="maintenance@factory.com, manager@factory.com"
+          value={emailConfig.emails}
+          onChange={e => setEmailConfig({...emailConfig, emails: e.target.value})}
+          style={{
+            width: "100%", padding: "8px 12px", borderRadius: "6px",
+            border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+          }}
+        />
+      </div>
+
+      <div>
+        <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "4px" }}>
+          SMTP Server
+        </label>
+        <input
+          type="text"
+          value={emailConfig.smtp_server}
+          onChange={e => setEmailConfig({...emailConfig, smtp_server: e.target.value})}
+          style={{
+            width: "100%", padding: "8px 12px", borderRadius: "6px",
+            border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+          }}
+        />
+      </div>
+
+      <div>
+        <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "4px" }}>
+          SMTP Port
+        </label>
+        <input
+          type="number"
+          value={emailConfig.smtp_port}
+          onChange={e => setEmailConfig({...emailConfig, smtp_port: e.target.value})}
+          style={{
+            width: "100%", padding: "8px 12px", borderRadius: "6px",
+            border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+          }}
+        />
+      </div>
+
+      <div>
+        <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "4px" }}>
+          Email Username
+        </label>
+        <input
+          type="email"
+          placeholder="your.email@gmail.com"
+          value={emailConfig.smtp_username}
+          onChange={e => setEmailConfig({...emailConfig, smtp_username: e.target.value})}
+          style={{
+            width: "100%", padding: "8px 12px", borderRadius: "6px",
+            border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+          }}
+        />
+      </div>
+
+      <div>
+        <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "4px" }}>
+          App Password
+        </label>
+        <input
+          type="password"
+          placeholder="Gmail app password (no spaces)"
+          value={emailConfig.smtp_password}
+          onChange={e => setEmailConfig({...emailConfig, smtp_password: e.target.value})}
+          style={{
+            width: "100%", padding: "8px 12px", borderRadius: "6px",
+            border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+          }}
+        />
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <input
+          type="checkbox"
+          checked={emailConfig.use_ssl}
+          onChange={e => setEmailConfig({...emailConfig, use_ssl: e.target.checked})}
+          id="use_ssl"
+        />
+        <label htmlFor="use_ssl" style={{ fontSize: "13px", color: "#666" }}>
+          Use SSL (recommended for Gmail)
+        </label>
+      </div>
+
+    </div>
+
+    <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+      <button onClick={saveEmailConfig} style={{
+        background: "#1D9E75", color: "white", border: "none",
+        padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+        fontSize: "14px", fontWeight: 500
+      }}>
+        💾 Save Configuration
+      </button>
+      <button onClick={sendTestAlert} style={{
+        background: "#378ADD", color: "white", border: "none",
+        padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+        fontSize: "14px", fontWeight: 500
+      }}>
+        📧 Send Test Alert
+      </button>
+    </div>
+
+    {emailSaved && (
+      <div style={{ marginTop: "12px", color: "#1D9E75", fontSize: "13px", fontWeight: 500 }}>
+        ✅ Email configuration saved successfully!
+      </div>
+    )}
+
+    <div style={{ marginTop: "12px", padding: "10px", background: "#F8F9FA", borderRadius: "6px", fontSize: "12px", color: "#666" }}>
+      <strong>Gmail setup:</strong> Use your Gmail address as username. For password, create an App Password at 
+      <a href="https://myaccount.google.com/apppasswords" target="_blank" style={{ color: "#378ADD" }}> myaccount.google.com/apppasswords</a>. 
+      Remove spaces from the 16-character password before entering.
+    </div>
+  </div>
+)}
+
+
       {error && (
         <div style={{
           background: "#FAECE7", border: "1px solid #E24B4A",

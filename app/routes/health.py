@@ -10,6 +10,8 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, De
 import pandas as pd
 import io
 from app.core.database import get_db, SensorReadingDB, AlertDB, DowntimeEventDB
+from app.core.notifications import send_alert_email, send_daily_summary_email
+from typing import List
 
 router = APIRouter()
 
@@ -184,6 +186,59 @@ async def ingest_reading(reading: SensorReading, db: Session = Depends(get_db)):
         "message": message
     }
 
+# Send email alert if critical — with 1 hour cooldown
+    if result["alert"]:
+        try:
+            import json
+            import os
+            from datetime import timedelta
+            from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+
+            if os.path.exists("alert_config.json"):
+                with open("alert_config.json", "r") as f:
+                    config = json.load(f)
+
+                if config.get("emails") and config.get("smtp_username"):
+                    # Check cooldown — only send once per hour
+                    last_alert_file = "last_alert.json"
+                    should_send = True
+
+                    if os.path.exists(last_alert_file):
+                        with open(last_alert_file, "r") as f:
+                            last_alert = json.load(f)
+                        last_sent = datetime.fromisoformat(last_alert["timestamp"])
+                        if datetime.utcnow() - last_sent < timedelta(hours=1):
+                            should_send = False
+                            print("Email cooldown active — skipping alert email")
+
+                    if should_send:
+                        dynamic_conf = ConnectionConfig(
+                            MAIL_USERNAME=config["smtp_username"],
+                            MAIL_PASSWORD=config["smtp_password"],
+                            MAIL_FROM=config["smtp_username"],
+                            MAIL_PORT=int(config.get("smtp_port", 465)),
+                            MAIL_SERVER=config.get("smtp_server", "smtp.gmail.com"),
+                            MAIL_FROM_NAME="OpenPMX Alert System",
+                            MAIL_STARTTLS=False,
+                            MAIL_SSL_TLS=bool(config.get("use_ssl", True)),
+                            USE_CREDENTIALS=True,
+                            VALIDATE_CERTS=True
+                        )
+                        await send_alert_email(
+                            recipients=config["emails"],
+                            machine_id=reading.machine_id,
+                            overall_health=result["overall_health"],
+                            message=message,
+                            bearings=result["bearings"],
+                            timestamp=reading.timestamp.isoformat(),
+                            conf=dynamic_conf
+                        )
+                        # Save last alert timestamp
+                        with open(last_alert_file, "w") as f:
+                            json.dump({"timestamp": datetime.utcnow().isoformat()}, f)
+        except Exception as e:
+            print(f"Email notification failed: {e}")
+            
     # Broadcast to ALL connected dashboards in real-time
     await manager.broadcast(response)
 
@@ -468,3 +523,54 @@ def get_oee(machine_id: str, hours: int = 24, db: Session = Depends(get_db)):
         "downtime_events_count": len(downtime_events),
         "machine_currently_down": active is not None
     }
+
+@router.post("/configure-alerts")
+async def configure_alerts(request: dict):
+    """Configure email settings for alerts"""
+    import json
+    config = {
+        "emails": request.get("emails", []),
+        "machine_id": request.get("machine_id", "machine_001"),
+        "smtp_server": request.get("smtp_server", "smtp.gmail.com"),
+        "smtp_port": request.get("smtp_port", 465),
+        "smtp_username": request.get("smtp_username", ""),
+        "smtp_password": request.get("smtp_password", ""),
+        "use_ssl": request.get("use_ssl", True)
+    }
+    with open("alert_config.json", "w") as f:
+        json.dump(config, f)
+    return {"status": "configured", "emails": config["emails"]}
+
+@router.get("/configure-alerts")
+async def get_alert_config():
+    """Get current email configuration"""
+    import json
+    import os
+    if os.path.exists("alert_config.json"):
+        with open("alert_config.json", "r") as f:
+            config = json.load(f)
+        # Hide password
+        config["smtp_password"] = "***" if config.get("smtp_password") else ""
+        return config
+    return {"emails": [], "configured": False}
+
+@router.post("/test-alert")
+async def test_alert(email: str):
+    """Send a test alert email"""
+    try:
+        await send_alert_email(
+            recipients=[email],
+            machine_id="machine_001",
+            overall_health=0.0,
+            message="Critical! Imminent bearing failure. Stop machine now.",
+            bearings={
+                "bearing1": {"health_score": 80.5, "status": "healthy"},
+                "bearing2": {"health_score": 85.7, "status": "healthy"},
+                "bearing3": {"health_score": 0.0, "status": "critical"},
+                "bearing4": {"health_score": 38.7, "status": "warning"}
+            },
+            timestamp="2026-01-15T08:30:00"
+        )
+        return {"status": "sent", "email": email}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
