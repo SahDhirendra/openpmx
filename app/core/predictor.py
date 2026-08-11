@@ -2,6 +2,11 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import os
+import json
+
+# Path to save trained model
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "model.json")
+MODEL_PATH = os.path.abspath(MODEL_PATH)
 
 class BearingPredictor:
     def __init__(self):
@@ -9,6 +14,45 @@ class BearingPredictor:
         self.baseline_std = None
         self.dynamic_thresholds = None
         self.is_trained = False
+        
+        # Try to load saved model on startup
+        self.load_model()
+
+    def save_model(self):
+        """Save trained model to disk"""
+        if not self.is_trained:
+            return
+        
+        model_data = {
+            "baseline_mean": self.baseline_mean.tolist(),
+            "baseline_std": self.baseline_std.tolist(),
+            "dynamic_thresholds": self.dynamic_thresholds.tolist(),
+            "is_trained": True
+        }
+        
+        os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+        with open(MODEL_PATH, "w") as f:
+            json.dump(model_data, f)
+        print(f"Model saved to: {MODEL_PATH}")
+
+    def load_model(self):
+        """Load saved model from disk"""
+        if os.path.exists(MODEL_PATH):
+            try:
+                with open(MODEL_PATH, "r") as f:
+                    model_data = json.load(f)
+                
+                self.baseline_mean = np.array(model_data["baseline_mean"])
+                self.baseline_std = np.array(model_data["baseline_std"])
+                self.dynamic_thresholds = np.array(model_data["dynamic_thresholds"])
+                self.is_trained = True
+                print(f"Model loaded from: {MODEL_PATH}")
+                print(f"Baseline mean: {self.baseline_mean}")
+            except Exception as e:
+                print(f"Failed to load model: {e}")
+                self.is_trained = False
+        else:
+            print("No saved model found — train the model first")
 
     def train(self, data_path: str):
         """Train the predictor on historical bearing data"""
@@ -57,13 +101,18 @@ class BearingPredictor:
 
         df = pd.DataFrame(records)
 
+        # Calculate baseline from first 500 snapshots
         baseline = df.values[:500]
         self.baseline_mean = baseline.mean(axis=0)
         self.baseline_std = baseline.std(axis=0)
         self.dynamic_thresholds = self.baseline_mean * 2
 
         self.is_trained = True
-        print("Predictor trained successfully!")
+        
+        # Save model to disk immediately
+        self.save_model()
+        
+        print("Predictor trained and saved successfully!")
         print(f"Baseline mean: {self.baseline_mean}")
         print(f"Thresholds: {self.dynamic_thresholds}")
 
@@ -97,7 +146,7 @@ class BearingPredictor:
                 "rms": round(float(reading), 4),
                 "health_score": round(float(health), 1),
                 "status": status,
-                "threshold": round(thresh, 4)
+                "threshold": round(float(thresh), 4)
             }
 
         # Overall machine health
