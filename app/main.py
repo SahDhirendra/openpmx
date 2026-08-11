@@ -1,20 +1,31 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.health import router
 from app.core.database import init_db
+from app.core.logger import logger
+from app.core.predictor import predictor
+
+
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    init_db()
+    logger.info("OpenPMX backend started successfully!")
+    logger.info(f"Model trained: {predictor.is_trained}")
+    yield
+    # Shutdown
+    logger.info("OpenPMX backend shutting down")
 
 # Create FastAPI app
 app = FastAPI(
     title="OpenPMX",
     description="Open-source predictive maintenance platform for manufacturing",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
-
-# Initialize database on startup
-@app.on_event("startup")
-async def startup_event():
-    init_db()
-    print("OpenPMX started successfully!")
 
 # Allow React dashboard to talk to the API
 app.add_middleware(

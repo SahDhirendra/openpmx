@@ -15,6 +15,7 @@ from typing import List
 from app.core.work_order import generate_work_order
 from fastapi.responses import FileResponse
 import os
+from app.core.logger import logger
 
 router = APIRouter()
 
@@ -94,7 +95,7 @@ async def ingest_reading(reading: SensorReading, db: Session = Depends(get_db)):
             status_code=503,
             detail="Predictor not trained yet. Call /train first."
         )
-
+    logger.debug(f"Ingest received from {reading.machine_id} — B1:{reading.bearing1_rms} B2:{reading.bearing2_rms} B3:{reading.bearing3_rms} B4:{reading.bearing4_rms}")
     # Run ML prediction
     result = predictor.predict(
         bearing1=reading.bearing1_rms,
@@ -146,8 +147,12 @@ async def ingest_reading(reading: SensorReading, db: Session = Depends(get_db)):
             bearing_affected=critical_bearing
         )
         db.add(db_alert)
+    if result["alert"]:
+        logger.warning(f"ALERT triggered for {reading.machine_id} — Health: {result['overall_health']}/100 — {message}")
 
-    # Downtime detection
+
+
+ # Downtime detection
     # If health drops below 25 — machine is effectively down
     DOWNTIME_THRESHOLD = 25
     

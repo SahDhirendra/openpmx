@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import os
 import json
+from app.core.logger import logger
 
 # Path to save trained model
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "model.json")
@@ -33,7 +34,7 @@ class BearingPredictor:
         os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
         with open(MODEL_PATH, "w") as f:
             json.dump(model_data, f)
-        print(f"Model saved to: {MODEL_PATH}")
+        logger.info(f"Model saved to: {MODEL_PATH}")
 
     def load_model(self):
         """Load saved model from disk"""
@@ -46,13 +47,13 @@ class BearingPredictor:
                 self.baseline_std = np.array(model_data["baseline_std"])
                 self.dynamic_thresholds = np.array(model_data["dynamic_thresholds"])
                 self.is_trained = True
-                print(f"Model loaded from: {MODEL_PATH}")
-                print(f"Baseline mean: {self.baseline_mean}")
+                logger.info(f"Model loaded from: {MODEL_PATH}")
+                logger.info(f"Baseline mean: {self.baseline_mean}")
             except Exception as e:
-                print(f"Failed to load model: {e}")
+                logger.error(f"Failed to load model: {e}")
                 self.is_trained = False
         else:
-            print("No saved model found — train the model first")
+            logger.warning("No saved model found — train the model first")
 
     def train(self, data_path: str):
         """Train the predictor on historical bearing data"""
@@ -112,9 +113,9 @@ class BearingPredictor:
         # Save model to disk immediately
         self.save_model()
         
-        print("Predictor trained and saved successfully!")
-        print(f"Baseline mean: {self.baseline_mean}")
-        print(f"Thresholds: {self.dynamic_thresholds}")
+        logger.info("Predictor trained and saved successfully!")
+        logger.info(f"Baseline mean: {self.baseline_mean}")
+        logger.info(f"Thresholds: {self.dynamic_thresholds}")
 
     def predict(self, bearing1: float, bearing2: float,
                 bearing3: float, bearing4: float) -> dict:

@@ -35,3 +35,7 @@ dashboard/dist/
 # Test files
 test_ingest.py
 data/openpmx.db
+
+# Logs
+logs/
+*.log
