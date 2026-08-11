@@ -619,3 +619,41 @@ async def create_work_order(reading: SensorReading):
         media_type="application/pdf",
         filename=os.path.basename(pdf_path)
     )
+
+@router.post("/cleanup-database")
+def cleanup_database(days_to_keep: int = 90):
+    """Manually trigger database cleanup"""
+    try:
+        from app.core.database import cleanup_old_data
+        result = cleanup_old_data(days_to_keep=days_to_keep)
+        logger.info(f"Manual database cleanup triggered: {result}")
+        return {
+            "status": "success",
+            "message": f"Deleted data older than {days_to_keep} days",
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/database-stats")
+def database_stats(db: Session = Depends(get_db)):
+    """Get database size and record counts"""
+    import os
+    
+    readings_count = db.query(SensorReadingDB).count()
+    alerts_count = db.query(AlertDB).count()
+    downtime_count = db.query(DowntimeEventDB).count()
+    
+    # Get database file size
+    db_path = os.path.join(os.path.dirname(__file__), 
+                           "..", "..", "data", "openpmx.db")
+    db_path = os.path.abspath(db_path)
+    db_size_mb = os.path.getsize(db_path) / (1024 * 1024) if os.path.exists(db_path) else 0
+
+    return {
+        "readings_count": readings_count,
+        "alerts_count": alerts_count,
+        "downtime_events_count": downtime_count,
+        "database_size_mb": round(db_size_mb, 2),
+        "database_path": db_path
+    }

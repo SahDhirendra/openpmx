@@ -15,6 +15,15 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("OpenPMX backend started successfully!")
     logger.info(f"Model trained: {predictor.is_trained}")
+    
+    # Run database cleanup on startup
+    try:
+        from app.core.database import cleanup_old_data
+        result = cleanup_old_data(days_to_keep=90)
+        logger.info(f"Database cleanup: {result}")
+    except Exception as e:
+        logger.error(f"Database cleanup failed: {e}")
+    
     yield
     # Shutdown
     logger.info("OpenPMX backend shutting down")

@@ -74,3 +74,66 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def cleanup_old_data(days_to_keep: int = 90):
+    """
+    Delete readings and alerts older than N days
+    Runs automatically to prevent database from growing too large
+    """
+    from datetime import timedelta
+    
+    db = SessionLocal()
+    try:
+        cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+        
+        # Delete old readings
+        old_readings = db.query(SensorReadingDB)\
+            .filter(SensorReadingDB.created_at < cutoff_date)\
+            .count()
+        
+        db.query(SensorReadingDB)\
+            .filter(SensorReadingDB.created_at < cutoff_date)\
+            .delete()
+
+        # Delete old alerts
+        old_alerts = db.query(AlertDB)\
+            .filter(AlertDB.created_at < cutoff_date)\
+            .count()
+        
+        db.query(AlertDB)\
+            .filter(AlertDB.created_at < cutoff_date)\
+            .delete()
+
+        # Delete old resolved downtime events
+        old_downtime = db.query(DowntimeEventDB)\
+            .filter(
+                DowntimeEventDB.created_at < cutoff_date,
+                DowntimeEventDB.resolved == True
+            ).count()
+
+        db.query(DowntimeEventDB)\
+            .filter(
+                DowntimeEventDB.created_at < cutoff_date,
+                DowntimeEventDB.resolved == True
+            ).delete()
+
+        db.commit()
+
+        print(f"Database cleanup complete:")
+        print(f"  Deleted {old_readings} old readings")
+        print(f"  Deleted {old_alerts} old alerts")
+        print(f"  Deleted {old_downtime} old downtime events")
+
+        return {
+            "deleted_readings": old_readings,
+            "deleted_alerts": old_alerts,
+            "deleted_downtime": old_downtime,
+            "cutoff_date": cutoff_date.isoformat()
+        }
+    except Exception as e:
+        db.rollback()
+        print(f"Cleanup failed: {e}")
+        raise e
+    finally:
+        db.close()
