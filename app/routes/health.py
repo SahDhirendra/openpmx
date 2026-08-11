@@ -657,3 +657,20 @@ def database_stats(db: Session = Depends(get_db)):
         "database_size_mb": round(db_size_mb, 2),
         "database_path": db_path
     }
+
+@router.get("/config")
+def get_config():
+    """Get current configuration"""
+    from app.core.config import config
+    # Return config without sensitive data
+    safe_config = {
+        "machine": config["machine"],
+        "backend": config["backend"],
+        "database": {"retention_days": config["database"]["retention_days"]},
+        "model": config["model"],
+        "alerts": {"downtime_threshold": config["alerts"]["downtime_threshold"],
+                   "email_cooldown_hours": config["alerts"]["email_cooldown_hours"]},
+        "edge": config["edge"],
+        "dashboard": config["dashboard"]
+    }
+    return safe_config

@@ -2,28 +2,31 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.health import router
-from app.core.database import init_db
+from app.core.database import init_db, cleanup_old_data
 from app.core.logger import logger
 from app.core.predictor import predictor
-
-
-from contextlib import asynccontextmanager
+from app.core.config import config, MACHINE_ID, RETENTION_DAYS
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger.info("=" * 50)
+    logger.info("OpenPMX Starting...")
+    logger.info(f"Machine: {config['machine']['name']} ({MACHINE_ID})")
+    logger.info(f"Location: {config['machine']['location']}")
+    logger.info("=" * 50)
+    
     init_db()
     logger.info("OpenPMX backend started successfully!")
     logger.info(f"Model trained: {predictor.is_trained}")
-    
+
     # Run database cleanup on startup
     try:
-        from app.core.database import cleanup_old_data
-        result = cleanup_old_data(days_to_keep=90)
+        result = cleanup_old_data(days_to_keep=RETENTION_DAYS)
         logger.info(f"Database cleanup: {result}")
     except Exception as e:
         logger.error(f"Database cleanup failed: {e}")
-    
+
     yield
     # Shutdown
     logger.info("OpenPMX backend shutting down")
