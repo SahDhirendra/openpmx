@@ -71,6 +71,10 @@ export default function App() {
   const [downtime, setDowntime] = useState([])
   const wsRef = useRef(null)
   const pingRef = useRef(null)
+  const [machines, setMachines] = useState([])
+  const [selectedMachine, setSelectedMachine] = useState("machine_001")
+  const [showMachineManager, setShowMachineManager] = useState(false)
+  const [newMachine, setNewMachine] = useState({ machine_id: "", name: "", location: "" })
 
   const [showEmailConfig, setShowEmailConfig] = useState(false)
   const [emailConfig, setEmailConfig] = useState({
@@ -129,7 +133,46 @@ const [costSavings, setCostSavings] = useState(null)
     }
   }
 
-  const saveEmailConfig = async () => {
+  const loadMachines = async () => {
+  try {
+    const res = await axios.get(`${API_URL}/machines`)
+    setMachines(res.data.machines)
+  } catch (e) {
+    console.error("Failed to load machines:", e)
+  }
+}
+
+const registerMachine = async () => {
+  if (!newMachine.machine_id || !newMachine.name) {
+    setError("Machine ID and name are required")
+    return
+  }
+  try {
+    await axios.post(`${API_URL}/machines`, null, {
+      params: {
+        machine_id: newMachine.machine_id,
+        name: newMachine.name,
+        location: newMachine.location
+      }
+    })
+    setNewMachine({ machine_id: "", name: "", location: "" })
+    await loadMachines()
+  } catch (e) {
+    setError("Failed to register machine")
+  }
+}
+
+const deleteMachine = async (machine_id) => {
+  try {
+    await axios.delete(`${API_URL}/machines/${machine_id}`)
+    await loadMachines()
+  } catch (e) {
+    setError("Failed to delete machine")
+  }
+}
+
+
+const saveEmailConfig = async () => {
   try {
     const emails = emailConfig.emails.split(",").map(e => e.trim()).filter(e => e)
     await axios.post(`${API_URL}/configure-alerts`, {
@@ -220,6 +263,7 @@ const calculateSavings = async () => {
       if (res.data.predictor_trained) {
         await loadHistory()
         await loadOEE()
+         await loadMachines()
       }
     } catch (e) {
       setError("Cannot connect to API. Make sure the backend is running.")
@@ -404,6 +448,15 @@ const calculateSavings = async () => {
   }}>
     ⚙️ Alert Settings
   </button>
+
+  <button onClick={() => setShowMachineManager(!showMachineManager)} style={{
+  background: "white", color: "#555", border: "1px solid #ddd",
+  padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+  fontSize: "14px", fontWeight: 500
+}}>
+  🏭 Machines
+</button>
+
 </div>
 
 
@@ -564,6 +617,139 @@ const calculateSavings = async () => {
       <a href="https://myaccount.google.com/apppasswords" target="_blank" style={{ color: "#378ADD" }}> myaccount.google.com/apppasswords</a>. 
       Remove spaces from the 16-character password before entering.
     </div>
+  </div>
+)}
+
+{/* Machine Manager Panel */}
+{showMachineManager && (
+  <div style={{
+    background: "white", border: "1px solid #ddd",
+    borderRadius: "12px", padding: "20px", marginBottom: "16px"
+  }}>
+    <h2 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 600 }}>
+      🏭 Machine Fleet Manager
+    </h2>
+
+    {/* Fleet overview */}
+    {machines.length > 0 && (
+      <div style={{ marginBottom: "20px" }}>
+        <h3 style={{ fontSize: "14px", fontWeight: 600, margin: "0 0 10px" }}>
+          Active Machines ({machines.length})
+        </h3>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          {machines.map(m => (
+            <div
+              key={m.machine_id}
+              onClick={() => setSelectedMachine(m.machine_id)}
+              style={{
+                border: `2px solid ${
+                  selectedMachine === m.machine_id ? "#1D9E75" :
+                  m.status === "critical" ? "#E24B4A" :
+                  m.status === "healthy" ? "#1D9E75" : "#ddd"
+                }`,
+                borderRadius: "10px", padding: "12px 16px",
+                cursor: "pointer", minWidth: "160px",
+                background: selectedMachine === m.machine_id ? "#E1F5EE" : "white"
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>
+                {m.name}
+              </div>
+              <div style={{ fontSize: "12px", color: "#666", marginBottom: "6px" }}>
+                {m.location || "No location"}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{
+                  fontSize: "18px", fontWeight: 700,
+                  color: m.overall_health >= 75 ? "#1D9E75" :
+                         m.overall_health >= 50 ? "#378ADD" :
+                         m.overall_health >= 25 ? "#EF9F27" : "#E24B4A"
+                }}>
+                  {m.overall_health !== null ? `${m.overall_health}/100` : "N/A"}
+                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteMachine(m.machine_id) }}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "#E24B4A", fontSize: "16px"
+                  }}
+                >🗑️</button>
+              </div>
+              {m.last_seen && (
+                <div style={{ fontSize: "10px", color: "#888", marginTop: "4px" }}>
+                  Last seen: {new Date(m.last_seen).toLocaleTimeString()}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Add new machine */}
+    <h3 style={{ fontSize: "14px", fontWeight: 600, margin: "0 0 10px" }}>
+      Add New Machine
+    </h3>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+      <div>
+        <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "4px" }}>
+          Machine ID
+        </label>
+        <input
+          type="text"
+          placeholder="machine_002"
+          value={newMachine.machine_id}
+          onChange={e => setNewMachine({...newMachine, machine_id: e.target.value})}
+          style={{
+            width: "100%", padding: "8px 12px", borderRadius: "6px",
+            border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+          }}
+        />
+      </div>
+      <div>
+        <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "4px" }}>
+          Machine Name
+        </label>
+        <input
+          type="text"
+          placeholder="Press Line 2"
+          value={newMachine.name}
+          onChange={e => setNewMachine({...newMachine, name: e.target.value})}
+          style={{
+            width: "100%", padding: "8px 12px", borderRadius: "6px",
+            border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+          }}
+        />
+      </div>
+      <div>
+        <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "4px" }}>
+          Location
+        </label>
+        <input
+          type="text"
+          placeholder="Factory Floor B"
+          value={newMachine.location}
+          onChange={e => setNewMachine({...newMachine, location: e.target.value})}
+          style={{
+            width: "100%", padding: "8px 12px", borderRadius: "6px",
+            border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+          }}
+        />
+      </div>
+    </div>
+    <button onClick={registerMachine} style={{
+      background: "#1D9E75", color: "white", border: "none",
+      padding: "10px 20px", borderRadius: "8px", cursor: "pointer",
+      fontSize: "14px", fontWeight: 500
+    }}>
+      + Add Machine
+    </button>
+
+    {machines.length === 0 && (
+      <div style={{ marginTop: "12px", fontSize: "13px", color: "#888" }}>
+        No machines registered yet. Machines are auto-registered when they send their first reading.
+      </div>
+    )}
   </div>
 )}
 

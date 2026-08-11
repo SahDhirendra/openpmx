@@ -62,6 +62,21 @@ class DowntimeEventDB(Base):
     resolved = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+class MachineDB(Base):
+    __tablename__ = "machines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    machine_id = Column(String, unique=True, index=True)
+    name = Column(String)
+    location = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime, nullable=True)
+    overall_health = Column(Float, nullable=True)
+    status = Column(String, default="unknown")
+
 def init_db():
     """Create all tables if they don't exist"""
     Base.metadata.create_all(bind=engine)

@@ -16,6 +16,8 @@ from app.core.work_order import generate_work_order
 from fastapi.responses import FileResponse
 import os
 from app.core.logger import logger
+from app.core.database import get_db, SensorReadingDB, AlertDB, DowntimeEventDB, MachineDB
+
 
 router = APIRouter()
 
@@ -96,6 +98,22 @@ async def ingest_reading(reading: SensorReading, db: Session = Depends(get_db)):
             detail="Predictor not trained yet. Call /train first."
         )
     logger.debug(f"Ingest received from {reading.machine_id} — B1:{reading.bearing1_rms} B2:{reading.bearing2_rms} B3:{reading.bearing3_rms} B4:{reading.bearing4_rms}")
+
+    # Auto-register machine if not exists
+    machine = db.query(MachineDB).filter(
+        MachineDB.machine_id == reading.machine_id
+    ).first()
+
+    if not machine:
+        machine = MachineDB(
+            machine_id=reading.machine_id,
+            name=reading.machine_id,
+            location="Unknown",
+            status="active"
+        )
+        db.add(machine)
+        logger.info(f"Auto-registered new machine: {reading.machine_id}")
+
     # Run ML prediction
     result = predictor.predict(
         bearing1=reading.bearing1_rms,
@@ -180,6 +198,12 @@ async def ingest_reading(reading: SensorReading, db: Session = Depends(get_db)):
             duration = (reading.timestamp - active_downtime.start_time).total_seconds() / 60
             active_downtime.duration_minutes = round(duration, 2)
             active_downtime.resolved = True
+
+        # Update machine last seen and health
+    if machine:
+        machine.last_seen = reading.timestamp
+        machine.overall_health = result["overall_health"]
+        machine.status = "critical" if result["alert"] else "healthy"
 
     db.commit()
 
@@ -674,3 +698,68 @@ def get_config():
         "dashboard": config["dashboard"]
     }
     return safe_config
+
+@router.get("/machines")
+def get_machines(db: Session = Depends(get_db)):
+    """Get all registered machines"""
+    machines = db.query(MachineDB).filter(MachineDB.is_active == True).all()
+    return {
+        "machines": [
+            {
+                "machine_id": m.machine_id,
+                "name": m.name,
+                "location": m.location,
+                "description": m.description,
+                "overall_health": m.overall_health,
+                "status": m.status,
+                "last_seen": m.last_seen.isoformat() if m.last_seen else None,
+                "created_at": m.created_at.isoformat()
+            }
+            for m in machines
+        ]
+    }
+
+@router.post("/machines")
+def register_machine(
+    machine_id: str,
+    name: str,
+    location: str = "",
+    description: str = "",
+    db: Session = Depends(get_db)
+):
+    """Register a new machine"""
+    # Check if already exists
+    existing = db.query(MachineDB).filter(
+        MachineDB.machine_id == machine_id
+    ).first()
+
+    if existing:
+        existing.name = name
+        existing.location = location
+        existing.description = description
+        existing.is_active = True
+        db.commit()
+        return {"status": "updated", "machine_id": machine_id}
+
+    machine = MachineDB(
+        machine_id=machine_id,
+        name=name,
+        location=location,
+        description=description
+    )
+    db.add(machine)
+    db.commit()
+    logger.info(f"New machine registered: {machine_id} — {name}")
+    return {"status": "registered", "machine_id": machine_id}
+
+@router.delete("/machines/{machine_id}")
+def delete_machine(machine_id: str, db: Session = Depends(get_db)):
+    """Deactivate a machine"""
+    machine = db.query(MachineDB).filter(
+        MachineDB.machine_id == machine_id
+    ).first()
+    if not machine:
+        raise HTTPException(status_code=404, detail="Machine not found")
+    machine.is_active = False
+    db.commit()
+    return {"status": "deactivated", "machine_id": machine_id}
