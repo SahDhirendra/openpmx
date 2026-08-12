@@ -1,75 +1,71 @@
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 import os
 import json
-from app.core.logger import logger
+import sys
 
-# Path to save trained model
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "model.json")
-MODEL_PATH = os.path.abspath(MODEL_PATH)
+
+def get_base_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'OpenPMX')
+    else:
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+BASE_DIR = get_base_dir()
+MODEL_PATH = os.path.join(BASE_DIR, "data", "model.json")
+os.makedirs(os.path.join(BASE_DIR, "data"), exist_ok=True)
+
 
 class BearingPredictor:
+
     def __init__(self):
         self.baseline_mean = None
         self.baseline_std = None
         self.dynamic_thresholds = None
         self.is_trained = False
-        
-        # Try to load saved model on startup
         self.load_model()
 
     def save_model(self):
-        """Save trained model to disk"""
         if not self.is_trained:
             return
-        
         model_data = {
             "baseline_mean": self.baseline_mean.tolist(),
             "baseline_std": self.baseline_std.tolist(),
             "dynamic_thresholds": self.dynamic_thresholds.tolist(),
             "is_trained": True
         }
-        
         os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
         with open(MODEL_PATH, "w") as f:
             json.dump(model_data, f)
-        logger.info(f"Model saved to: {MODEL_PATH}")
+        print(f"Model saved to: {MODEL_PATH}")
 
     def load_model(self):
-        """Load saved model from disk"""
         if os.path.exists(MODEL_PATH):
             try:
                 with open(MODEL_PATH, "r") as f:
                     model_data = json.load(f)
-                
                 self.baseline_mean = np.array(model_data["baseline_mean"])
                 self.baseline_std = np.array(model_data["baseline_std"])
                 self.dynamic_thresholds = np.array(model_data["dynamic_thresholds"])
                 self.is_trained = True
-                logger.info(f"Model loaded from: {MODEL_PATH}")
-                logger.info(f"Baseline mean: {self.baseline_mean}")
+                print(f"Model loaded from: {MODEL_PATH}")
             except Exception as e:
-                logger.error(f"Failed to load model: {e}")
+                print(f"Failed to load model: {e}")
                 self.is_trained = False
         else:
-            logger.warning("No saved model found — train the model first")
+            print("No saved model found — train the model first")
 
     def train(self, data_path: str):
-        """Train the predictor on historical bearing data"""
         import zipfile
 
         first_folder = os.path.join(data_path, "1st_test", "1st_test")
 
-        # Download data if not present
         if not os.path.exists(first_folder):
             print("Data not found. Downloading from Kaggle...")
             os.makedirs(data_path, exist_ok=True)
 
             import subprocess
-            subprocess.run([
-                "pip", "install", "kaggle"
-            ], check=True)
+            subprocess.run(["pip", "install", "kaggle"], check=True)
 
             zip_path = os.path.join(data_path, "bearing-dataset.zip")
             subprocess.run([
@@ -81,7 +77,6 @@ class BearingPredictor:
             print("Extracting dataset...")
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(data_path)
-
             os.remove(zip_path)
             print("Dataset ready!")
 
@@ -101,25 +96,16 @@ class BearingPredictor:
             records.append(record)
 
         df = pd.DataFrame(records)
-
-        # Calculate baseline from first 500 snapshots
         baseline = df.values[:500]
         self.baseline_mean = baseline.mean(axis=0)
         self.baseline_std = baseline.std(axis=0)
         self.dynamic_thresholds = self.baseline_mean * 2
-
         self.is_trained = True
-        
-        # Save model to disk immediately
         self.save_model()
-        
-        logger.info("Predictor trained and saved successfully!")
-        logger.info(f"Baseline mean: {self.baseline_mean}")
-        logger.info(f"Thresholds: {self.dynamic_thresholds}")
+        print("Predictor trained and saved successfully!")
 
     def predict(self, bearing1: float, bearing2: float,
                 bearing3: float, bearing4: float) -> dict:
-        """Predict health scores for 4 bearings"""
         if not self.is_trained:
             raise Exception("Predictor not trained yet!")
 
@@ -129,11 +115,9 @@ class BearingPredictor:
         for i, (reading, mean, thresh) in enumerate(
             zip(readings, self.baseline_mean, self.dynamic_thresholds)
         ):
-            # Calculate health score
             health = 100 * (1 - (reading - mean) / (thresh - mean))
-            health = max(0, min(100, health))
+            health = max(0.0, min(100.0, float(health)))
 
-            # Determine status
             if health >= 75:
                 status = "healthy"
             elif health >= 50:
@@ -150,7 +134,6 @@ class BearingPredictor:
                 "threshold": round(float(thresh), 4)
             }
 
-        # Overall machine health
         overall = min(r["health_score"] for r in results.values())
 
         return {
@@ -158,6 +141,7 @@ class BearingPredictor:
             "overall_health": round(float(overall), 1),
             "alert": bool(overall < 50)
         }
+
 
 # Global predictor instance
 predictor = BearingPredictor()

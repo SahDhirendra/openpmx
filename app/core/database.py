@@ -5,8 +5,17 @@ from datetime import datetime
 import os
 
 # Database file location
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "openpmx.db")
-DB_PATH = os.path.abspath(DB_PATH)
+import sys
+
+def get_base_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'OpenPMX')
+    else:
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+BASE_DIR = get_base_dir()
+DB_PATH = os.path.join(BASE_DIR, "data", "openpmx.db")
+os.makedirs(os.path.join(BASE_DIR, "data"), exist_ok=True)
 
 # Create engine
 engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})

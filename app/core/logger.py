@@ -9,8 +9,17 @@ from logging.handlers import RotatingFileHandler
 from datetime import datetime
 
 # Log file location
-LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
-LOG_DIR = os.path.abspath(LOG_DIR)
+import sys
+
+def get_base_dir():
+    if getattr(sys, 'frozen', False):
+        # When running as exe, use AppData for writable files
+        return os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'OpenPMX')
+    else:
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+BASE_DIR = get_base_dir()
+LOG_DIR = os.path.join(BASE_DIR, "logs")
 LOG_FILE = os.path.join(LOG_DIR, "openpmx.log")
 
 def setup_logger():

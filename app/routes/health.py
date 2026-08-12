@@ -359,13 +359,19 @@ def predict_health(reading: SensorReading):
 
 @router.post("/train")
 def train_predictor():
-    """Train the predictor on NASA bearing dataset"""
     import os
+    import sys
     import traceback
 
-    data_path = os.path.join(os.path.dirname(__file__),
-                             "..", "..", "data")
-    data_path = os.path.abspath(data_path)
+    if getattr(sys, 'frozen', False):
+        base_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'OpenPMX')
+    else:
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+    data_path = os.path.join(base_dir, "data")
+    os.makedirs(data_path, exist_ok=True)
+    
+    # ... rest of function
 
     print(f"Looking for data at: {data_path}")
     print(f"Data path exists: {os.path.exists(data_path)}")
@@ -375,10 +381,7 @@ def train_predictor():
 
     try:
         if not os.path.exists(data_path):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Data folder not found at {data_path}"
-            )
+            os.makedirs(data_path, exist_ok=True)
 
         predictor.train(data_path)
 

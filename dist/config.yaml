@@ -1,0 +1,58 @@
+# OpenPMX Configuration File
+# Edit this file to configure your platform
+
+# ─────────────────────────────────────────
+# Machine Settings
+# ─────────────────────────────────────────
+machine:
+  id: "machine_001"
+  name: "Production Line 1"
+  location: "Factory Floor A"
+  read_interval: 10  # seconds between readings
+
+# ─────────────────────────────────────────
+# Backend Settings
+# ─────────────────────────────────────────
+backend:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+
+# ─────────────────────────────────────────
+# Database Settings
+# ─────────────────────────────────────────
+database:
+  path: "data/openpmx.db"
+  retention_days: 90  # delete data older than this
+
+# ─────────────────────────────────────────
+# ML Model Settings
+# ─────────────────────────────────────────
+model:
+  path: "data/model.json"
+  baseline_samples: 500  # number of samples for baseline
+  anomaly_threshold_multiplier: 2.0  # threshold = mean * this value
+  health_alert_threshold: 50  # alert when health drops below this
+
+# ─────────────────────────────────────────
+# Alert Settings
+# ─────────────────────────────────────────
+alerts:
+  email_cooldown_hours: 1  # minimum hours between emails
+  downtime_threshold: 25  # health score below this = machine down
+
+# ─────────────────────────────────────────
+# Edge Agent Settings
+# ─────────────────────────────────────────
+edge:
+  api_url: "http://localhost:8000"
+  read_interval: 10  # seconds
+  buffer_max: 1000  # max readings to buffer offline
+
+# ─────────────────────────────────────────
+# Dashboard Settings
+# ─────────────────────────────────────────
+dashboard:
+  api_url: "http://localhost:8000"
+  refresh_interval: 10  # seconds
+  kiosk_mode: false
