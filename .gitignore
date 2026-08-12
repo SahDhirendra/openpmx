@@ -1,5 +1,25 @@
-# Docker
-.dockerignore
+# Virtual environment
+venv/
+
+# Dataset files
+data/1st_test/
+data/2nd_test/
+data/3rd_test/
+bearing-dataset.zip
+data/openpmx.db
+data/model.json
+
+# Node modules
+node_modules/
+dashboard/node_modules/
+
+# Build output
+dashboard/dist/
+
+# Environment files
+.env
+.env.local
+dashboard/.env.local
 
 # Python
 __pycache__/
@@ -12,54 +32,14 @@ __pycache__/
 # Jupyter checkpoints
 .ipynb_checkpoints/
 
-# Virtual environment
-venv/
-
-# Data files
-data/1st_test/
-data/2nd_test/
-data/3rd_test/
-bearing-dataset.zip
-
-# Node modules
-node_modules/
-dashboard/node_modules/
-
-# Build output
-dashboard/dist/
-
-# Environment files
-.env
-.env.local
-
-# Test files
-test_ingest.py
-data/openpmx.db
-
 # Logs
 logs/
 *.log
-
-# Build artifacts
-dist/
-build/
-*.exe
-*.pkg
-installer/output/
-installer/nginx/
 
 # Runtime files
 alert_config.json
 last_alert.json
 last_alert*.json
-work_orders/
-test_*.py
-test_*.csv
-
-
-# Runtime files
-alert_config.json
-last_alert.json
 work_orders/
 
 # Test files
@@ -72,3 +52,11 @@ build/
 *.spec
 installer/output/
 installer/nginx/
+
+# Docker
+.dockerignore
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
