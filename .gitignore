@@ -39,3 +39,11 @@ data/openpmx.db
 # Logs
 logs/
 *.log
+
+# Build artifacts
+dist/
+build/
+*.exe
+*.pkg
+installer/output/
+installer/nginx/
