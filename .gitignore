@@ -47,3 +47,11 @@ build/
 *.pkg
 installer/output/
 installer/nginx/
+
+# Runtime files
+alert_config.json
+last_alert.json
+last_alert*.json
+work_orders/
+test_*.py
+test_*.csv
