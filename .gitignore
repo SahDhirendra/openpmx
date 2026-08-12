@@ -55,3 +55,20 @@ last_alert*.json
 work_orders/
 test_*.py
 test_*.csv
+
+
+# Runtime files
+alert_config.json
+last_alert.json
+work_orders/
+
+# Test files
+test_*.py
+test_*.csv
+
+# Build artifacts
+dist/
+build/
+*.spec
+installer/output/
+installer/nginx/
