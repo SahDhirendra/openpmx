@@ -69,9 +69,9 @@ Project Website: [https://sahdhirendra.github.io/openpmx](https://sahdhirendra.g
 ## ⬇️ Download
 
 ### Windows Installer (Recommended)
-[![Download](https://img.shields.io/badge/Download-Windows%20Installer-blue?style=for-the-badge&logo=windows)](https://github.com/SahDhirendra/openpmx/releases/download/v1.0.0/OpenPMX-Setup-v1.0.0.exe)
+[![Download](https://img.shields.io/badge/Download-Windows%20Installer-blue?style=for-the-badge&logo=windows)](https://github.com/SahDhirendra/openpmx/releases/download/v1.1.0/OpenPMX-Setup-v1.1.0.exe)
 
-**[Download OpenPMX-Setup-v1.0.0.exe](https://github.com/SahDhirendra/openpmx/releases/download/v1.0.0/OpenPMX-Setup-v1.0.0.exe)**
+**[Download OpenPMX-Setup-v1.1.0.exe](https://github.com/SahDhirendra/openpmx/releases/download/v1.1.0/OpenPMX-Setup-v1.1.0.exe)**
 
 1. Download the installer above
 2. Right-click → **Run as Administrator**
