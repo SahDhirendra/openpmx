@@ -355,6 +355,25 @@ export default function App() {
     }
   }
 
+  const generateMonthlyReport = async () => {
+    try {
+      const res = await axios.post(
+        `${API_URL}/generate-monthly-report?machine_id=machine_001&hourly_rate=${costConfig.hourly_rate}&repair_cost=${costConfig.repair_cost}`,
+        {},
+        { responseType: "blob" }
+      )
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement("a")
+      link.href = url
+      link.setAttribute("download", `openpmx-monthly-report-${new Date().toISOString().slice(0,7)}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (e) {
+      setError("Failed to generate monthly report.")
+    }
+  }
+
   const registerMachine = async () => {
     if (!newMachine.machine_id || !newMachine.name) { setError("Machine ID and name are required"); return }
     try {
@@ -412,8 +431,12 @@ export default function App() {
               <button onClick={() => runPrediction("failure")} disabled={loading} style={{ ...btnStyle, background: "#E24B4A", color: "white" }}>
                 {loading ? "..." : "⚠️ Failure"}
               </button>
+              
               <button onClick={generateWorkOrder} style={{ ...btnStyle, background: "#7F77DD", color: "white" }}>
                 📋 {!mobile && "Work Order"}
+              </button>
+              <button onClick={generateMonthlyReport} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
+                📊 {!mobile && "Monthly Report"}
               </button>
             </>
           )}

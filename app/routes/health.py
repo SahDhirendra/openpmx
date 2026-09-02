@@ -15,6 +15,7 @@ from typing import List
 from app.core.work_order import generate_work_order
 from fastapi.responses import FileResponse
 import os
+from app.core.monthly_report import generate_monthly_report
 from app.core.version import get_version, check_for_updates
 from app.core.logger import logger
 from app.core.database import get_db, SensorReadingDB, AlertDB, DowntimeEventDB, MachineDB
@@ -777,3 +778,87 @@ def get_current_version():
 async def check_updates():
     """Check GitHub for latest version"""
     return await check_for_updates()
+
+@router.post("/generate-monthly-report")
+async def create_monthly_report(
+    machine_id: str = "machine_001",
+    hourly_rate: float = 1000,
+    repair_cost: float = 5000,
+    db: Session = Depends(get_db)
+):
+    """Generate a monthly PDF maintenance report"""
+    import os
+
+    # Get OEE data
+    from datetime import timedelta
+    now = datetime.utcnow()
+    start_time = now - timedelta(days=30)
+    total_minutes = 30 * 24 * 60
+
+    downtime_events_db = db.query(DowntimeEventDB).filter(
+        DowntimeEventDB.machine_id == machine_id,
+        DowntimeEventDB.start_time >= start_time
+    ).all()
+
+    total_downtime = sum(e.duration_minutes for e in downtime_events_db if e.duration_minutes)
+    uptime_minutes = max(total_minutes - total_downtime, 0)
+    availability = round((uptime_minutes / total_minutes) * 100, 1)
+    oee = round((availability / 100) * 100, 1)
+
+    oee_data = {
+        "oee": oee,
+        "availability": availability,
+        "uptime_minutes": uptime_minutes,
+        "total_downtime_minutes": total_downtime,
+        "downtime_events_count": len(downtime_events_db)
+    }
+
+    # Get downtime events
+    downtime_list = [
+        {
+            "start_time": e.start_time.isoformat(),
+            "duration_minutes": e.duration_minutes,
+            "resolved": e.resolved,
+            "cause": e.cause
+        }
+        for e in downtime_events_db
+    ]
+
+    # Get alerts
+    alerts_db = db.query(AlertDB).filter(
+        AlertDB.machine_id == machine_id,
+        AlertDB.timestamp >= start_time
+    ).order_by(AlertDB.timestamp.desc()).limit(20).all()
+
+    alerts_list = [
+        {
+            "timestamp": a.timestamp.isoformat(),
+            "overall_health": a.overall_health,
+            "bearing_affected": a.bearing_affected,
+            "message": a.message
+        }
+        for a in alerts_db
+    ]
+
+    # Get readings count
+    readings_count = db.query(SensorReadingDB).filter(
+        SensorReadingDB.machine_id == machine_id,
+        SensorReadingDB.timestamp >= start_time
+    ).count()
+
+    # Generate PDF
+    pdf_path = generate_monthly_report(
+        machine_id=machine_id,
+        oee_data=oee_data,
+        downtime_events=downtime_list,
+        alerts=alerts_list,
+        readings_count=readings_count,
+        hourly_rate=hourly_rate,
+        repair_cost=repair_cost
+    )
+
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=os.path.basename(pdf_path)
+    )
