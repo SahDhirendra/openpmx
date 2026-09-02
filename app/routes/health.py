@@ -15,6 +15,7 @@ from typing import List
 from app.core.work_order import generate_work_order
 from fastapi.responses import FileResponse
 import os
+from app.core.version import get_version, check_for_updates
 from app.core.logger import logger
 from app.core.database import get_db, SensorReadingDB, AlertDB, DowntimeEventDB, MachineDB
 
@@ -766,3 +767,13 @@ def delete_machine(machine_id: str, db: Session = Depends(get_db)):
     machine.is_active = False
     db.commit()
     return {"status": "deactivated", "machine_id": machine_id}
+
+@router.get("/version")
+def get_current_version():
+    """Get current version"""
+    return {"version": get_version()}
+
+@router.get("/check-updates")
+async def check_updates():
+    """Check GitHub for latest version"""
+    return await check_for_updates()

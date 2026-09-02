@@ -66,6 +66,7 @@ function HealthCard({ name, health, status, rms, threshold }) {
 }
 
 export default function App() {
+  const [updateInfo, setUpdateInfo] = useState(null)
   const [health, setHealth] = useState(null)
   const [loading, setLoading] = useState(false)
   const [csvLoading, setCsvLoading] = useState(false)
@@ -111,6 +112,7 @@ export default function App() {
   useEffect(() => {
     connectWebSocket()
     checkHealth()
+    checkForUpdates()
     return () => {
       if (wsRef.current) wsRef.current.close()
       if (pingRef.current) clearInterval(pingRef.current)
@@ -170,6 +172,16 @@ export default function App() {
     }
   }
 
+  const checkForUpdates = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/check-updates`)
+      if (res.data.update_available) {
+        setUpdateInfo(res.data)
+      }
+    } catch (e) {
+      console.log("Update check failed:", e)
+    }
+  }
   const connectWebSocket = () => {
     try {
       const ws = new WebSocket(`${WS_URL}/ws`)
@@ -432,6 +444,43 @@ export default function App() {
       {error && (
         <div style={{ background: "#FAECE7", border: "1px solid #E24B4A", borderRadius: "8px", padding: "12px 16px", color: "#712B13", marginBottom: "16px", fontSize: "13px" }}>
           ⚠️ {error}
+        </div>
+      )}
+
+      {/* Update available banner */}
+      {updateInfo && (
+        <div style={{
+          background: "#E6F1FB", border: "2px solid #378ADD",
+          borderRadius: "8px", padding: "12px 16px",
+          marginBottom: "16px", display: "flex",
+          alignItems: "center", justifyContent: "space-between",
+          flexWrap: "wrap", gap: "10px"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "20px" }}>🆕</span>
+            <div>
+              <div style={{ fontWeight: 600, color: "#0C447C", fontSize: "14px" }}>
+                Update available — v{updateInfo.latest_version}
+              </div>
+              <div style={{ fontSize: "12px", color: "#378ADD" }}>
+                You are on v{updateInfo.current_version}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <a href={updateInfo.release_url} target="_blank" rel="noreferrer"
+              style={{ background: "#378ADD", color: "white", padding: "8px 16px",
+                      borderRadius: "6px", textDecoration: "none", fontSize: "13px",
+                      fontWeight: 500 }}>
+              Download Update
+            </a>
+            <button onClick={() => setUpdateInfo(null)}
+              style={{ background: "none", border: "1px solid #378ADD",
+                      color: "#378ADD", padding: "8px 16px", borderRadius: "6px",
+                      cursor: "pointer", fontSize: "13px" }}>
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 
