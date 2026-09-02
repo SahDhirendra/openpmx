@@ -413,16 +413,15 @@ export default function App() {
         </div>
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           {!trained && (
-            <>
               <button onClick={trainModel} disabled={loading} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
                 {loading ? "Training..." : "Train Model"}
               </button>
-              <label style={{ ...btnStyle, background: "#378ADD", color: "white", display: "inline-block" }}>
-                {csvLoading ? "Uploading..." : "📂 Upload CSV"}
-                <input type="file" accept=".csv" style={{ display: "none" }} onChange={handleCSVUpload} />
-              </label>
-            </>
           )}
+            {/* CSV upload always visible */}
+            <label style={{ ...btnStyle, background: "#378ADD", color: "white", display: "inline-block" }}>
+              {csvLoading ? "Uploading..." : "📂 Upload CSV"}
+              <input type="file" accept=".csv" style={{ display: "none" }} onChange={handleCSVUpload} />
+            </label>
           {trained && (
             <>
               <button onClick={() => runPrediction("healthy")} disabled={loading} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
@@ -431,13 +430,13 @@ export default function App() {
               <button onClick={() => runPrediction("failure")} disabled={loading} style={{ ...btnStyle, background: "#E24B4A", color: "white" }}>
                 {loading ? "..." : "⚠️ Failure"}
               </button>
-              
               <button onClick={generateWorkOrder} style={{ ...btnStyle, background: "#7F77DD", color: "white" }}>
                 📋 {!mobile && "Work Order"}
               </button>
               <button onClick={generateMonthlyReport} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
                 📊 {!mobile && "Monthly Report"}
               </button>
+              
             </>
           )}
           <button onClick={() => setShowEmailConfig(!showEmailConfig)} style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
