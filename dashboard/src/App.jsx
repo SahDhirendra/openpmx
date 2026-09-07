@@ -109,6 +109,21 @@ export default function App() {
   const [users, setUsers] = useState([])
   const [newUser, setNewUser] = useState({ username: "", email: "", password: "", role: "viewer" })
 
+
+  const [showPLCConfig, setShowPLCConfig] = useState(false)
+  const [plcConfig, setPLCConfig] = useState({
+    plc_type: "simulation",
+    plc_ip: "",
+    plc_slot: 0,
+    opcua_endpoint: "",
+    modbus_port: 502,
+    tags: {
+      bearing1_rms: "",
+      bearing2_rms: "",
+      bearing3_rms: "",
+      bearing4_rms: ""
+    }
+  })
   const wsRef = useRef(null)
   const pingRef = useRef(null)
 
@@ -479,6 +494,23 @@ export default function App() {
     }
   }
 
+    const loadPLCConfig = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/plc-config`)
+      setPLCConfig(res.data)
+    } catch (e) {
+      console.error("Failed to load PLC config:", e)
+    }
+  }
+
+  const savePLCConfig = async () => {
+    try {
+      await axios.post(`${API_URL}/plc-config`, plcConfig)
+      alert("PLC configuration saved! Update config.py on your Raspberry Pi to apply.")
+    } catch (e) {
+      setError("Failed to save PLC configuration")
+    }
+  }
   const btnStyle = {
     border: "none", cursor: "pointer", borderRadius: "8px",
     padding: mobile ? "8px 14px" : "10px 20px",
@@ -557,6 +589,14 @@ export default function App() {
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
 
           {/* Admin only — Train model */}
+
+          {user?.role === "admin" && (
+            <button onClick={() => { setShowPLCConfig(!showPLCConfig); loadPLCConfig() }}
+              style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
+              🔌 {!mobile && "PLC"}
+            </button>
+          )}
+
           {!trained && user?.role === "admin" && (
             <button onClick={trainModel} disabled={loading} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
               {loading ? "Training..." : "Train Model"}
@@ -923,6 +963,99 @@ export default function App() {
             </select>
           </div>
           <button onClick={createUser} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>+ Add User</button>
+        </div>
+      )}
+
+      {/* PLC Configuration Panel — admin only */}
+      {showPLCConfig && user?.role === "admin" && (
+        <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
+          <h2 style={{ margin: "0 0 14px", fontSize: "15px", fontWeight: 600 }}>🔌 PLC Configuration</h2>
+
+          <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+            <div>
+              <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>PLC Type</label>
+              <select value={plcConfig.plc_type}
+                onChange={e => setPLCConfig({...plcConfig, plc_type: e.target.value})}
+                style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }}>
+                <option value="simulation">Simulation (testing)</option>
+                <option value="allen_bradley">Allen-Bradley (EtherNet/IP)</option>
+                <option value="siemens">Siemens S7</option>
+                <option value="modbus">Modbus TCP</option>
+                <option value="opcua">OPC-UA</option>
+              </select>
+            </div>
+
+            {plcConfig.plc_type !== "simulation" && (
+              <div>
+                <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>PLC IP Address</label>
+                <input type="text" placeholder="192.168.1.10" value={plcConfig.plc_ip}
+                  onChange={e => setPLCConfig({...plcConfig, plc_ip: e.target.value})}
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
+              </div>
+            )}
+
+            {plcConfig.plc_type === "allen_bradley" && (
+              <div>
+                <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>PLC Slot</label>
+                <input type="number" value={plcConfig.plc_slot}
+                  onChange={e => setPLCConfig({...plcConfig, plc_slot: parseInt(e.target.value)})}
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
+              </div>
+            )}
+
+            {plcConfig.plc_type === "opcua" && (
+              <div style={{ gridColumn: mobile ? "1" : "1 / -1" }}>
+                <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>OPC-UA Endpoint</label>
+                <input type="text" placeholder="opc.tcp://192.168.1.10:4840" value={plcConfig.opcua_endpoint}
+                  onChange={e => setPLCConfig({...plcConfig, opcua_endpoint: e.target.value})}
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
+              </div>
+            )}
+
+            {plcConfig.plc_type === "modbus" && (
+              <div>
+                <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>Modbus Port</label>
+                <input type="number" value={plcConfig.modbus_port}
+                  onChange={e => setPLCConfig({...plcConfig, modbus_port: parseInt(e.target.value)})}
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
+              </div>
+            )}
+          </div>
+
+          {/* Tag configuration */}
+          {plcConfig.plc_type !== "simulation" && (
+            <div style={{ marginBottom: "12px" }}>
+              <h3 style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 8px" }}>Tag Names</h3>
+              <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: "8px" }}>
+                {Object.entries(plcConfig.tags).map(([key, value]) => (
+                  <div key={key}>
+                    <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>
+                      {key.replace("_rms", "").replace("bearing", "Bearing ")} Tag
+                    </label>
+                    <input type="text"
+                      placeholder={plcConfig.plc_type === "allen_bradley" ? "Program:MainProgram.Bearing1_RMS" :
+                                  plcConfig.plc_type === "modbus" ? "40001" :
+                                  plcConfig.plc_type === "opcua" ? "ns=2;s=Bearing1_RMS" : ""}
+                      value={value}
+                      onChange={e => setPLCConfig({...plcConfig, tags: {...plcConfig.tags, [key]: e.target.value}})}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button onClick={savePLCConfig} style={{ ...btnStyle, background: "#1D9E75", color: "white", marginBottom: "12px" }}>
+            💾 Save PLC Configuration
+          </button>
+
+          <div style={{ background: "#F8F9FA", borderRadius: "8px", padding: "10px 12px", fontSize: "12px", color: "#666" }}>
+            <strong>How to apply:</strong> After saving, update <code>edge/config.py</code> on your Raspberry Pi with the same settings and restart the edge agent.
+            <br/><br/>
+            <strong>Allen-Bradley:</strong> Tag format: <code>Program:MainProgram.TagName</code><br/>
+            <strong>Modbus:</strong> Register number (e.g. 40001)<br/>
+            <strong>OPC-UA:</strong> Node ID format: <code>ns=2;s=TagName</code>
+          </div>
         </div>
       )}
 

@@ -1,9 +1,7 @@
 # OpenPMX Edge Agent Configuration
-# Edit these settings for your factory setup
 
 # Backend API URL
-# Change this to your server's IP when deploying to factory
-API_URL = "http://localhost:8000"
+API_URL = "http://192.168.1.3:8000"
 
 # Machine identification
 MACHINE_ID = "machine_001"
@@ -11,11 +9,30 @@ MACHINE_ID = "machine_001"
 # How often to read sensors (seconds)
 READ_INTERVAL = 10
 
-# PLC Configuration (for Step 5)
-PLC_IP = "192.168.1.10"  # Your PLC's IP address
-PLC_TYPE = "allen_bradley"  # allen_bradley, siemens, modbus
+# ─────────────────────────────────────────
+# PLC Configuration
+# ─────────────────────────────────────────
+# PLC type: "simulation", "allen_bradley", "siemens", "modbus", "opcua"
+PLC_TYPE = "simulation"
 
-# Tag names to read from PLC (Allen-Bradley format)
+# PLC IP address
+PLC_IP = "192.168.1.10"
+
+# PLC slot (Allen-Bradley only)
+PLC_SLOT = 0
+
+# OPC-UA endpoint (OPC-UA only)
+OPCUA_ENDPOINT = "opc.tcp://192.168.1.10:4840"
+
+# Modbus port (Modbus TCP only)
+MODBUS_PORT = 502
+
+# Tag names to read from PLC
+# Format depends on PLC type:
+# Allen-Bradley: "Program:MainProgram.TagName"
+# Siemens: "DB1.DBD0"
+# Modbus: register number (integer)
+# OPC-UA: "ns=2;s=TagName"
 PLC_TAGS = {
     "bearing1_rms": "Program:MainProgram.Bearing1_RMS",
     "bearing2_rms": "Program:MainProgram.Bearing2_RMS",
@@ -23,8 +40,6 @@ PLC_TAGS = {
     "bearing4_rms": "Program:MainProgram.Bearing4_RMS",
 }
 
-# Local buffer file — stores readings if network is down
+# Local buffer
 BUFFER_FILE = "buffer.json"
-
-# Number of readings to keep in buffer
 BUFFER_MAX = 1000

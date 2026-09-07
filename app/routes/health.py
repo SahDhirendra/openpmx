@@ -862,3 +862,34 @@ async def create_monthly_report(
         media_type="application/pdf",
         filename=os.path.basename(pdf_path)
     )
+
+@router.get("/plc-config")
+def get_plc_config():
+    """Get current PLC configuration"""
+    import json
+    import os
+    if os.path.exists("plc_config.json"):
+        with open("plc_config.json", "r") as f:
+            return json.load(f)
+    return {
+        "plc_type": "simulation",
+        "plc_ip": "",
+        "plc_slot": 0,
+        "opcua_endpoint": "",
+        "modbus_port": 502,
+        "tags": {
+            "bearing1_rms": "",
+            "bearing2_rms": "",
+            "bearing3_rms": "",
+            "bearing4_rms": ""
+        }
+    }
+
+@router.post("/plc-config")
+def save_plc_config(config: dict):
+    """Save PLC configuration"""
+    import json
+    with open("plc_config.json", "w") as f:
+        json.dump(config, f, indent=2)
+    logger.info(f"PLC config saved: {config.get('plc_type')} at {config.get('plc_ip')}")
+    return {"status": "saved", "config": config}
