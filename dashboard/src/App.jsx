@@ -506,11 +506,14 @@ export default function App() {
   const savePLCConfig = async () => {
     try {
       await axios.post(`${API_URL}/plc-config`, plcConfig)
-      alert("PLC configuration saved! Update config.py on your Raspberry Pi to apply.")
+      alert("PLC configuration saved! Edge agent will apply changes automatically within 30 seconds.")
     } catch (e) {
       setError("Failed to save PLC configuration")
     }
   }
+
+
+
   const btnStyle = {
     border: "none", cursor: "pointer", borderRadius: "8px",
     padding: mobile ? "8px 14px" : "10px 20px",
@@ -1050,7 +1053,7 @@ export default function App() {
           </button>
 
           <div style={{ background: "#F8F9FA", borderRadius: "8px", padding: "10px 12px", fontSize: "12px", color: "#666" }}>
-            <strong>How to apply:</strong> After saving, update <code>edge/config.py</code> on your Raspberry Pi with the same settings and restart the edge agent.
+            <strong>How to apply:</strong> Configuration is applied automatically — the edge agent detects changes within 30 seconds. No manual steps needed.
             <br/><br/>
             <strong>Allen-Bradley:</strong> Tag format: <code>Program:MainProgram.TagName</code><br/>
             <strong>Modbus:</strong> Register number (e.g. 40001)<br/>

@@ -1,6 +1,6 @@
 {
-  "plc_type": "allen_bradley",
-  "plc_ip": "10.10.1.10",
+  "plc_type": "simulation",
+  "plc_ip": "192.168.1.10",
   "plc_slot": 0,
   "opcua_endpoint": "",
   "modbus_port": 502,
