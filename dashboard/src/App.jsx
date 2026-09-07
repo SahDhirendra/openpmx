@@ -94,7 +94,7 @@ export default function App() {
   const [costSavings, setCostSavings] = useState(null)
   const [showMachineManager, setShowMachineManager] = useState(false)
   const [machines, setMachines] = useState([])
-  const [selectedMachine, setSelectedMachine] = useState("machine_001")
+  const [selectedMachine, setSelectedMachine] = useState(localStorage.getItem('openpmx_selected_machine') || "machine_001")
   const [newMachine, setNewMachine] = useState({ machine_id: "", name: "", location: "" })
   const [mobile, setMobile] = useState(isMobile())
   const [updateInfo, setUpdateInfo] = useState(null)
@@ -154,6 +154,16 @@ export default function App() {
       if (pingRef.current) clearInterval(pingRef.current)
     }
   }, [])
+
+  useEffect(() => {
+  if (trained) {
+    loadHistory()
+    loadOEE()
+    setHistory([])
+    setHealth(null)
+  }
+}, [selectedMachine])
+
 
   // ─── Auth functions ───
 
@@ -256,7 +266,7 @@ export default function App() {
 
   const loadHistory = async () => {
     try {
-      const histRes = await axios.get(`${API_URL}/history/machine_001`)
+      const histRes = await axios.get(`${API_URL}/history/${selectedMachine}`)
       if (histRes.data.readings.length > 0) {
         const historyData = histRes.data.readings.map(r => ({
           time: new Date(r.timestamp).toLocaleTimeString(),
@@ -275,9 +285,9 @@ export default function App() {
 
   const loadOEE = async () => {
     try {
-      const oeeRes = await axios.get(`${API_URL}/oee/machine_001`)
+      const oeeRes = await axios.get(`${API_URL}/oee/${selectedMachine}`)
       setOee(oeeRes.data)
-      const dtRes = await axios.get(`${API_URL}/downtime/machine_001`)
+      const dtRes = await axios.get(`${API_URL}/downtime/${selectedMachine}`)
       setDowntime(dtRes.data.downtime_events)
     } catch (e) {
       console.error("Failed to load OEE:", e)
@@ -817,6 +827,10 @@ export default function App() {
         )}
         {lastUpdate && <span style={{ color: "#888", fontSize: "11px" }}>Updated: {lastUpdate}</span>}
       </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <span style={{ color: "#666" }}>Machine:</span>
+        <span style={{ fontWeight: 500, color: "#1D9E75" }}>{selectedMachine}</span>
+      </div>
 
       {/* Bearing health cards */}
       {health && health.bearings && (
@@ -927,7 +941,11 @@ export default function App() {
               <h3 style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 8px" }}>Active Machines ({machines.length})</h3>
               <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: "8px" }}>
                 {machines.map(m => (
-                  <div key={m.machine_id} onClick={() => setSelectedMachine(m.machine_id)}
+                  <div key={m.machine_id} onClick={() => {
+                      setSelectedMachine(m.machine_id)
+                      localStorage.setItem('openpmx_selected_machine', m.machine_id)
+                      setShowMachineManager(false)
+                    }}
                     style={{ border: `2px solid ${selectedMachine === m.machine_id ? "#1D9E75" : m.status === "critical" ? "#E24B4A" : "#ddd"}`, borderRadius: "8px", padding: "10px", cursor: "pointer" }}>
                     <div style={{ fontWeight: 600, fontSize: "13px" }}>{m.name}</div>
                     <div style={{ fontSize: "11px", color: "#666" }}>{m.location}</div>
