@@ -137,6 +137,10 @@ export default function App() {
   })
   const [passwordMessage, setPasswordMessage] = useState(null)
 
+  const [unacknowledgedAlerts, setUnacknowledgedAlerts] = useState([])
+  const [showAckModal, setShowAckModal] = useState(false)
+  const [ackForm, setAckForm] = useState({ alert_id: null, note: "" })
+
 
   useEffect(() => {
     const handleResize = () => setMobile(isMobile())
@@ -230,6 +234,29 @@ export default function App() {
 }
 
 
+const loadUnacknowledgedAlerts = async () => {
+  try {
+    const res = await axios.get(`${API_URL}/alerts/${selectedMachine}/unacknowledged`)
+    setUnacknowledgedAlerts(res.data.alerts)
+  } catch (e) {
+    console.error("Failed to load alerts:", e)
+  }
+}
+
+const acknowledgeAlert = async () => {
+  try {
+    await axios.post(
+      `${API_URL}/alerts/${ackForm.alert_id}/acknowledge?acknowledged_by=${user.username}&note=${ackForm.note}`
+    )
+    setShowAckModal(false)
+    setAckForm({ alert_id: null, note: "" })
+    await loadUnacknowledgedAlerts()
+  } catch (e) {
+    setError("Failed to acknowledge alert")
+  }
+}
+
+
   const loadUsers = async () => {
     try {
       const res = await axios.get(`${API_URL}/auth/users`)
@@ -310,6 +337,7 @@ export default function App() {
       if (res.data.predictor_trained) {
         await loadHistory()
         await loadOEE()
+        await loadUnacknowledgedAlerts()
         await loadMachines()
       }
     } catch (e) {
@@ -346,6 +374,7 @@ export default function App() {
           if (data.predictor_trained) {
             loadHistory()
             loadOEE()
+            loadUnacknowledgedAlerts()
             loadMachines()
           }
         } else if (data.type === "reading") {
@@ -362,6 +391,7 @@ export default function App() {
           }
           setHistory(prev => [...prev, newPoint].slice(-50))
           loadOEE()
+          loadUnacknowledgedAlerts()
         } else if (data.type === "pong") {
           console.log("Ping/pong OK")
         }
@@ -787,12 +817,31 @@ export default function App() {
 
       {/* Alert banner */}
       {health?.alert && (
-        <div style={{ background: "#FAECE7", border: "2px solid #E24B4A", borderRadius: "8px", padding: "14px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "22px" }}>⚠️</span>
-          <div>
-            <div style={{ fontWeight: 600, color: "#712B13", fontSize: mobile ? "13px" : "15px" }}>CRITICAL ALERT — {health.machine_id}</div>
-            <div style={{ fontSize: "13px", color: "#712B13" }}>{health.message}</div>
+        <div style={{ background: "#FAECE7", border: "2px solid #E24B4A", borderRadius: "8px", padding: "14px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "22px" }}>⚠️</span>
+            <div>
+              <div style={{ fontWeight: 600, color: "#712B13", fontSize: mobile ? "13px" : "15px" }}>CRITICAL ALERT — {health.machine_id}</div>
+              <div style={{ fontSize: "13px", color: "#712B13" }}>{health.message}</div>
+              {unacknowledgedAlerts.length > 0 && (
+                <div style={{ fontSize: "11px", color: "#712B13", marginTop: "4px" }}>
+                  {unacknowledgedAlerts.length} unacknowledged alert{unacknowledgedAlerts.length > 1 ? "s" : ""}
+                </div>
+              )}
+            </div>
           </div>
+          {unacknowledgedAlerts.length > 0 && (user?.role === "admin" || user?.role === "technician") && (
+            <button onClick={() => {
+              setAckForm({ alert_id: unacknowledgedAlerts[0].id, note: "" })
+              setShowAckModal(true)
+            }} style={{
+              background: "#E24B4A", color: "white", border: "none",
+              padding: "8px 16px", borderRadius: "6px", cursor: "pointer",
+              fontSize: "13px", fontWeight: 500
+            }}>
+              ✅ Acknowledge
+            </button>
+          )}
         </div>
       )}
 
@@ -1343,6 +1392,59 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Acknowledge Modal */}
+      {showAckModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)", display: "flex",
+          alignItems: "center", justifyContent: "center", zIndex: 1000
+        }}>
+          <div style={{
+            background: "white", borderRadius: "16px", padding: "24px",
+            width: "100%", maxWidth: "400px", margin: "24px"
+          }}>
+            <h2 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 600 }}>
+              ✅ Acknowledge Alert
+            </h2>
+            <p style={{ fontSize: "13px", color: "#666", marginBottom: "16px" }}>
+              Acknowledging as: <strong>{user?.username}</strong>
+            </p>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "4px" }}>
+                Note (optional)
+              </label>
+              <textarea
+                placeholder="What action are you taking?"
+                value={ackForm.note}
+                onChange={e => setAckForm({...ackForm, note: e.target.value})}
+                rows={3}
+                style={{
+                  width: "100%", padding: "8px 10px", borderRadius: "6px",
+                  border: "1px solid #ddd", fontSize: "13px",
+                  boxSizing: "border-box", resize: "vertical"
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button onClick={acknowledgeAlert} style={{
+                flex: 1, background: "#1D9E75", color: "white", border: "none",
+                padding: "10px", borderRadius: "8px", cursor: "pointer",
+                fontSize: "14px", fontWeight: 500
+              }}>
+                ✅ Confirm Acknowledge
+              </button>
+              <button onClick={() => setShowAckModal(false)} style={{
+                flex: 1, background: "white", color: "#555",
+                border: "1px solid #ddd", padding: "10px", borderRadius: "8px",
+                cursor: "pointer", fontSize: "14px"
+              }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

@@ -978,3 +978,48 @@ async def browse_plc_tags(config: dict):
 
     else:
         raise HTTPException(status_code=400, detail="Unsupported PLC type for tag browsing")
+
+
+@router.post("/alerts/{alert_id}/acknowledge")
+def acknowledge_alert(
+    alert_id: int,
+    acknowledged_by: str,
+    note: str = "",
+    db: Session = Depends(get_db)
+):
+    """Acknowledge an alert"""
+    alert = db.query(AlertDB).filter(AlertDB.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    alert.acknowledged = True
+    alert.acknowledged_by = acknowledged_by
+    alert.acknowledged_at = datetime.utcnow()
+    alert.acknowledgement_note = note
+    db.commit()
+
+    logger.info(f"Alert {alert_id} acknowledged by {acknowledged_by}")
+    return {"status": "acknowledged", "alert_id": alert_id}
+
+@router.get("/alerts/{machine_id}/unacknowledged")
+def get_unacknowledged_alerts(machine_id: str, db: Session = Depends(get_db)):
+    """Get unacknowledged alerts for a machine"""
+    alerts = db.query(AlertDB).filter(
+        AlertDB.machine_id == machine_id,
+        AlertDB.acknowledged == False
+    ).order_by(AlertDB.timestamp.desc()).all()
+
+    return {
+        "machine_id": machine_id,
+        "unacknowledged_count": len(alerts),
+        "alerts": [
+            {
+                "id": a.id,
+                "timestamp": a.timestamp.isoformat(),
+                "overall_health": a.overall_health,
+                "message": a.message,
+                "bearing_affected": a.bearing_affected
+            }
+            for a in alerts
+        ]
+    }

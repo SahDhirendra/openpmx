@@ -57,6 +57,11 @@ class AlertDB(Base):
     message = Column(String)
     bearing_affected = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
+        # New acknowledgement fields
+    acknowledged = Column(Boolean, default=False)
+    acknowledged_by = Column(String, nullable=True)
+    acknowledged_at = Column(DateTime, nullable=True)
+    acknowledgement_note = Column(String, nullable=True)
 
 class DowntimeEventDB(Base):
     __tablename__ = "downtime_events"
