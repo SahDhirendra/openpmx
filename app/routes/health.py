@@ -20,6 +20,10 @@ from app.core.version import get_version, check_for_updates
 from app.core.logger import logger
 from app.core.database import get_db, SensorReadingDB, AlertDB, DowntimeEventDB, MachineDB
 from app.core.database import get_db, SensorReadingDB, AlertDB, DowntimeEventDB, MachineDB, UserDB, MachineNoteDB
+from fastapi.responses import StreamingResponse
+import csv
+import io
+
 
 router = APIRouter()
 
@@ -1129,3 +1133,55 @@ def delete_note(note_id: int, db: Session = Depends(get_db)):
         db.delete(note)
         db.commit()
         return {"status": "deleted"}
+
+
+@router.get("/export/{machine_id}")
+def export_data(
+    machine_id: str,
+    hours: int = 24,
+    db: Session = Depends(get_db)
+):
+    """Export sensor readings to CSV"""
+    from datetime import timedelta
+
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    readings = db.query(SensorReadingDB)\
+        .filter(
+            SensorReadingDB.machine_id == machine_id,
+            SensorReadingDB.timestamp >= cutoff
+        )\
+        .order_by(SensorReadingDB.timestamp.asc())\
+        .all()
+
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow([
+        "Timestamp", "Machine ID",
+        "Bearing 1 RMS", "Bearing 2 RMS", "Bearing 3 RMS", "Bearing 4 RMS",
+        "Bearing 1 Health", "Bearing 2 Health", "Bearing 3 Health", "Bearing 4 Health",
+        "Overall Health", "Alert", "Message"
+    ])
+
+    # Data rows
+    for r in readings:
+        writer.writerow([
+            r.timestamp.isoformat(),
+            r.machine_id,
+            r.bearing1_rms, r.bearing2_rms, r.bearing3_rms, r.bearing4_rms,
+            r.bearing1_health, r.bearing2_health, r.bearing3_health, r.bearing4_health,
+            r.overall_health,
+            "Yes" if r.alert else "No",
+            r.message
+        ])
+
+    output.seek(0)
+    filename = f"openpmx_{machine_id}_{hours}h_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

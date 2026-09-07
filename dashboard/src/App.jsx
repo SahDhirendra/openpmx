@@ -332,7 +332,23 @@ const deleteNote = async (noteId) => {
   }
 }
 
-
+const exportData = async () => {
+  try {
+    const res = await axios.get(
+      `${API_URL}/export/${selectedMachine}?hours=${historyRange === "all" ? 720 : historyRange}`,
+      { responseType: "blob" }
+    )
+    const url = window.URL.createObjectURL(new Blob([res.data]))
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", `openpmx-${selectedMachine}-${new Date().toISOString().slice(0,10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  } catch (e) {
+    setError("Failed to export data")
+  }
+}
   const loadUsers = async () => {
     try {
       const res = await axios.get(`${API_URL}/auth/users`)
@@ -1594,6 +1610,18 @@ const deleteNote = async (noteId) => {
                 {range === "1" ? "1h" : range === "24" ? "24h" : range === "168" ? "7d" : range === "720" ? "30d" : "All"}
               </button>
             ))}
+            {trained && history.length > 0 && (
+                <button onClick={exportData} style={{
+                  ...btnStyle, background: "white", color: "#555",
+                  border: "1px solid #ddd", fontSize: "12px",
+                  padding: "4px 10px"
+                }}>
+                  📥 Export CSV
+                </button>
+              )}
+              <span style={{ fontSize: "12px", color: "#888" }}>
+                {history.length > 0 ? `${history.length} readings` : "No data"}
+              </span>
             <span style={{ fontSize: "12px", color: "#888" }}>
               {history.length > 0 ? `${history.length} readings` : "No data"}
             </span>
