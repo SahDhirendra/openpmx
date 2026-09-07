@@ -129,6 +129,15 @@ export default function App() {
   const wsRef = useRef(null)
   const pingRef = useRef(null)
 
+  const [showPasswordChange, setShowPasswordChange] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: ""
+  })
+  const [passwordMessage, setPasswordMessage] = useState(null)
+
+
   useEffect(() => {
     const handleResize = () => setMobile(isMobile())
     window.addEventListener('resize', handleResize)
@@ -184,6 +193,32 @@ export default function App() {
       logout()
     }
   }
+
+  const changePassword = async () => {
+  if (passwordForm.new_password !== passwordForm.confirm_password) {
+    setPasswordMessage({ type: "error", text: "New passwords don't match" })
+    return
+  }
+  if (passwordForm.new_password.length < 6) {
+    setPasswordMessage({ type: "error", text: "Password must be at least 6 characters" })
+    return
+  }
+  try {
+    await axios.post(`${API_URL}/auth/change-password`, {
+      current_password: passwordForm.current_password,
+      new_password: passwordForm.new_password
+    })
+    setPasswordMessage({ type: "success", text: "Password changed successfully!" })
+    setPasswordForm({ current_password: "", new_password: "", confirm_password: "" })
+    setTimeout(() => {
+      setShowPasswordChange(false)
+      setPasswordMessage(null)
+    }, 2000)
+  } catch (e) {
+    setPasswordMessage({ type: "error", text: e.response?.data?.detail || "Failed to change password" })
+  }
+}
+
 
   const loadUsers = async () => {
     try {
@@ -594,11 +629,6 @@ export default function App() {
           }}>
             {loginLoading ? "Signing in..." : "Sign In"}
           </button>
-
-          <div style={{ marginTop: "20px", padding: "12px", background: "#F8F9FA", borderRadius: "8px", fontSize: "12px", color: "#666", textAlign: "center" }}>
-            Default: <strong>admin</strong> / <strong>admin123</strong><br/>
-            Change password after first login
-          </div>
         </div>
       </div>
     )
@@ -691,9 +721,11 @@ export default function App() {
 
           {/* User info and logout — always visible */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "12px", color: "#666", background: "#F8F9FA", padding: "6px 10px", borderRadius: "6px" }}>
+            <button onClick={() => setShowPasswordChange(!showPasswordChange)} style={{
+              ...btnStyle, background: "#F8F9FA", color: "#555", border: "1px solid #ddd"
+            }}>
               👤 {user?.username} ({user?.role})
-            </span>
+            </button>
             <button onClick={logout} style={{ ...btnStyle, background: "#FAECE7", color: "#712B13", border: "1px solid #E24B4A" }}>
               Sign Out
             </button>
@@ -993,6 +1025,51 @@ export default function App() {
           <button onClick={createUser} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>+ Add User</button>
         </div>
       )}
+
+    {/* Password Change Panel */}
+    {showPasswordChange && (
+      <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
+        <h2 style={{ margin: "0 0 14px", fontSize: "15px", fontWeight: 600 }}>🔑 Change Password</h2>
+        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+          <div>
+            <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>Current Password</label>
+            <input type="password" placeholder="Current password"
+              value={passwordForm.current_password}
+              onChange={e => setPasswordForm({...passwordForm, current_password: e.target.value})}
+              style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>New Password</label>
+            <input type="password" placeholder="New password (min 6 chars)"
+              value={passwordForm.new_password}
+              onChange={e => setPasswordForm({...passwordForm, new_password: e.target.value})}
+              style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>Confirm Password</label>
+            <input type="password" placeholder="Confirm new password"
+              value={passwordForm.confirm_password}
+              onChange={e => setPasswordForm({...passwordForm, confirm_password: e.target.value})}
+              style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
+          </div>
+        </div>
+
+        <button onClick={changePassword} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
+          🔑 Change Password
+        </button>
+
+        {passwordMessage && (
+          <div style={{
+            marginTop: "10px", padding: "8px 12px", borderRadius: "6px", fontSize: "13px",
+            background: passwordMessage.type === "success" ? "#E1F5EE" : "#FAECE7",
+            color: passwordMessage.type === "success" ? "#085041" : "#712B13"
+          }}>
+            {passwordMessage.type === "success" ? "✅" : "⚠️"} {passwordMessage.text}
+          </div>
+        )}
+      </div>
+    )}
+
 
       {/* PLC Configuration Panel — admin only */}
       {showPLCConfig && user?.role === "admin" && (
