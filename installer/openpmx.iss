@@ -2,7 +2,7 @@
 ; Built with Inno Setup
 
 #define MyAppName "OpenPMX"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Dhirendra K. Sah"
 #define MyAppURL "https://sahdhirendra.github.io/openpmx"
 #define MyAppExeName "openpmx-launcher.bat"
