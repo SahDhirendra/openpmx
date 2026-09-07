@@ -140,6 +140,10 @@ export default function App() {
   const [unacknowledgedAlerts, setUnacknowledgedAlerts] = useState([])
   const [showAckModal, setShowAckModal] = useState(false)
   const [ackForm, setAckForm] = useState({ alert_id: null, note: "" })
+  const [showThresholds, setShowThresholds] = useState(false)
+  const [thresholds, setThresholds] = useState({
+  bearing1: "", bearing2: "", bearing3: "", bearing4: ""})
+  const [thresholdsSaved, setThresholdsSaved] = useState(false)
 
 
   useEffect(() => {
@@ -256,6 +260,29 @@ const acknowledgeAlert = async () => {
   }
 }
 
+const loadThresholds = async () => {
+  try {
+    const res = await axios.get(`${API_URL}/thresholds`)
+    setThresholds({
+      bearing1: res.data.bearings.bearing1.threshold,
+      bearing2: res.data.bearings.bearing2.threshold,
+      bearing3: res.data.bearings.bearing3.threshold,
+      bearing4: res.data.bearings.bearing4.threshold
+    })
+  } catch (e) {
+    console.error("Failed to load thresholds:", e)
+  }
+}
+
+const saveThresholds = async () => {
+  try {
+    await axios.post(`${API_URL}/thresholds`, thresholds)
+    setThresholdsSaved(true)
+    setTimeout(() => setThresholdsSaved(false), 3000)
+  } catch (e) {
+    setError("Failed to save thresholds")
+  }
+}
 
   const loadUsers = async () => {
     try {
@@ -692,6 +719,13 @@ const acknowledgeAlert = async () => {
             <button onClick={() => { setShowPLCConfig(!showPLCConfig); loadPLCConfig() }}
               style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
               🔌 {!mobile && "PLC"}
+            </button>
+          )}
+
+          {user?.role === "admin" && (
+            <button onClick={() => { setShowThresholds(!showThresholds); loadThresholds() }}
+              style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
+              📐 {!mobile && "Thresholds"}
             </button>
           )}
 
@@ -1289,6 +1323,58 @@ const acknowledgeAlert = async () => {
           </div>
         </div>
       )}
+
+
+      {/* Threshold Customization Panel — admin only */}
+        {showThresholds && user?.role === "admin" && (
+          <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
+            <h2 style={{ margin: "0 0 6px", fontSize: "15px", fontWeight: 600 }}>📐 Sensor Threshold Customization</h2>
+            <p style={{ fontSize: "12px", color: "#666", marginBottom: "14px" }}>
+              Adjust thresholds for each sensor. Health score drops to 0 when reading exceeds threshold.
+              Higher threshold = more tolerant. Lower threshold = more sensitive.
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: "12px", marginBottom: "12px" }}>
+              {["bearing1", "bearing2", "bearing3", "bearing4"].map((key, idx) => (
+                <div key={key} style={{ background: "#F8F9FA", borderRadius: "8px", padding: "12px" }}>
+                  <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "6px", fontWeight: 500 }}>
+                    Bearing {idx + 1} Threshold
+                  </label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={thresholds[key]}
+                    onChange={e => setThresholds({...thresholds, [key]: parseFloat(e.target.value)})}
+                    style={{
+                      width: "100%", padding: "8px 10px", borderRadius: "6px",
+                      border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box"
+                    }}
+                  />
+                  <div style={{ fontSize: "11px", color: "#888", marginTop: "4px" }}>
+                    Unit: g (RMS vibration)
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <button onClick={saveThresholds} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
+                💾 Save Thresholds
+              </button>
+              <button onClick={loadThresholds} style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
+                🔄 Reset to Current
+              </button>
+              {thresholdsSaved && (
+                <span style={{ fontSize: "13px", color: "#1D9E75", fontWeight: 500 }}>✅ Thresholds saved!</span>
+              )}
+            </div>
+
+            <div style={{ marginTop: "12px", background: "#FAEEDA", borderRadius: "8px", padding: "10px 12px", fontSize: "12px", color: "#633806" }}>
+              💡 <strong>Tip:</strong> Start with the auto-calculated values and adjust based on your machine's normal operating range.
+              If you get too many false alerts, increase the threshold. If you miss real failures, decrease it.
+            </div>
+          </div>
+        )}
 
       {/* OEE Widget */}
       {oee && (

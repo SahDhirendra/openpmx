@@ -1023,3 +1023,46 @@ def get_unacknowledged_alerts(machine_id: str, db: Session = Depends(get_db)):
             for a in alerts
         ]
     }
+
+@router.get("/thresholds")
+def get_thresholds():
+    """Get current sensor thresholds"""
+    if not predictor.is_trained:
+        raise HTTPException(status_code=503, detail="Predictor not trained yet")
+    
+    return {
+        "baseline_mean": predictor.baseline_mean.tolist(),
+        "dynamic_thresholds": predictor.dynamic_thresholds.tolist(),
+        "bearings": {
+            f"bearing{i+1}": {
+                "baseline_mean": round(float(predictor.baseline_mean[i]), 4),
+                "threshold": round(float(predictor.dynamic_thresholds[i]), 4)
+            }
+            for i in range(4)
+        }
+    }
+
+@router.post("/thresholds")
+def update_thresholds(thresholds: dict):
+    """Update sensor thresholds manually"""
+    import numpy as np
+    
+    if not predictor.is_trained:
+        raise HTTPException(status_code=503, detail="Predictor not trained yet")
+
+    try:
+        new_thresholds = [
+            float(thresholds.get("bearing1", predictor.dynamic_thresholds[0])),
+            float(thresholds.get("bearing2", predictor.dynamic_thresholds[1])),
+            float(thresholds.get("bearing3", predictor.dynamic_thresholds[2])),
+            float(thresholds.get("bearing4", predictor.dynamic_thresholds[3]))
+        ]
+        predictor.dynamic_thresholds = np.array(new_thresholds)
+        predictor.save_model()
+        logger.info(f"Thresholds updated: {new_thresholds}")
+        return {
+            "status": "updated",
+            "thresholds": new_thresholds
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
