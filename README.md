@@ -1,15 +1,13 @@
 # OpenPMX — Open-Source Predictive Maintenance Platform
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev)
+[![Version](https://img.shields.io/badge/Version-1.1.0-brightgreen)](https://github.com/SahDhirendra/openpmx/releases)
 [![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://sahdhirendra.github.io/openpmx)
 
-An open-source predictive maintenance platform for small and mid-sized 
-manufacturers. Built to democratize industrial AI for the 300,000+ SMB 
-manufacturers in the US who can't afford enterprise solutions like 
-Siemens MindSphere or PTC ThingWorx — which cost $100,000+/year.
+An open-source predictive maintenance platform built for small and mid-sized US manufacturers. Delivers the same AI-powered capabilities that Fortune 500 companies pay $100,000+/year for — completely free.
 
 ---
 
@@ -23,30 +21,66 @@ Project Website: [https://sahdhirendra.github.io/openpmx](https://sahdhirendra.g
 
 ---
 
+## ⬇️ Download
+
+### Windows Installer (Recommended)
+[![Download](https://img.shields.io/badge/Download-Windows%20Installer-blue?style=for-the-badge&logo=windows)](https://github.com/SahDhirendra/openpmx/releases/download/v1.1.0/OpenPMX-Setup-v1.1.0.exe)
+
+**[Download OpenPMX-Setup-v1.1.0.exe](https://github.com/SahDhirendra/openpmx/releases/download/v1.1.0/OpenPMX-Setup-v1.1.0.exe)**
+
+1. Download the installer above
+2. Right-click → **Run as Administrator**
+3. Follow the setup wizard
+4. OpenPMX opens automatically in your browser
+
+> No Python, Node.js or any other software needed — everything is included.
+
+---
+
 ## What it does
 
+### Core ML
 - 🔍 **Anomaly Detection** — Detects machine anomalies before they become failures
-- ⏱️ **Remaining Useful Life** — Predicts how many days before equipment failure
-- 🏥 **Health Scoring** — Real-time health score (0–100) for each sensor/bearing
-- 🚨 **Instant Alerts** — Critical alerts pushed via WebSocket in real time
+- ⏱️ **Remaining Useful Life** — Predicts days before equipment reaches failure threshold
+- 🏥 **Health Scoring** — Real-time health score (0–100) per machine component
+- 📈 **Historical Trend Analysis** — View data over 1h, 24h, 7d, 30d or all time
+
+### Operations
+- 🚨 **Real-time Alerts** — Critical alerts pushed via WebSocket instantly
+- ✅ **Alert Acknowledgement** — Technicians acknowledge alerts with notes and timestamps
 - 📊 **OEE Calculator** — Tracks Overall Equipment Effectiveness automatically
 - 📉 **Downtime Tracker** — Logs every downtime event with timestamp and cause
-- 📧 **Email Notifications** — Configurable alerts to maintenance team (any SMTP)
+- 📝 **Maintenance Log** — Technicians log notes with categories per machine
 - 📋 **Work Order Generator** — Auto-generates PDF maintenance work orders
+- 📊 **Monthly PDF Reports** — Professional monthly maintenance reports
 - 💰 **Cost Savings Calculator** — Shows dollar value of prevented failures
+- 📥 **CSV Export** — Export sensor data for any time range
+
+### Connectivity
+- 🔌 **Universal PLC Connector** — Connects to Allen-Bradley, Siemens, Modbus TCP, OPC-UA
+- 🏷️ **Auto Tag Discovery** — Browse and select PLC tags directly from dashboard
+- 🔄 **Auto Config Detection** — Edge agent detects PLC config changes automatically
 - 📂 **CSV Upload** — Upload any sensor data CSV — platform auto-detects columns
 - 🔌 **Edge Agent** — Raspberry Pi agent reads from PLCs and sends live data
+
+### Platform
+- 👤 **User Authentication** — JWT login with Admin, Technician, Viewer roles
+- 🏭 **Multi-Machine Fleet** — Monitor multiple machines from one dashboard
+- 📐 **Threshold Customization** — Adjust alert thresholds per sensor
+- 📱 **Mobile Responsive** — Works on phone, tablet, and desktop
 - 📺 **TV Kiosk Mode** — Auto-starts on Pi boot, fullscreen dashboard on TV
-- 🔒 **On-Premise Ready** — Runs fully on your own network via Docker
-- ⚡ **One Command Deploy** — `docker-compose up` — that's it
+- 🔄 **Auto-Update Checker** — Notifies users when new version available
+- 🔒 **On-Premise Ready** — Runs fully on your own network
+- ⚡ **One Command Deploy** — `docker-compose up`
 
 ---
 
 ## Tech Stack
 
-- **Backend:** Python · FastAPI · SQLAlchemy · SQLite · WebSockets
+- **Backend:** Python · FastAPI · SQLAlchemy · SQLite · WebSockets · JWT Auth
 - **Frontend:** React 19 · Vite · Custom SVG charts
 - **ML:** Statistical anomaly detection · RMS analysis · Health scoring
+- **PLC:** pycomm3 (Allen-Bradley) · asyncua (OPC-UA) · pymodbus (Modbus) · python-snap7 (Siemens)
 - **Edge:** Raspberry Pi · Python agent · Auto-reconnect · Local buffering
 - **Notifications:** FastAPI-Mail · SMTP · PDF generation with ReportLab
 - **Deployment:** Docker · docker-compose · Render.com · GitHub Pages
@@ -64,26 +98,33 @@ Project Website: [https://sahdhirendra.github.io/openpmx](https://sahdhirendra.g
 
 ---
 
+## User Roles
+
+| Feature | Admin | Technician | Viewer |
+|---------|-------|------------|--------|
+| Train model / Upload CSV | ✅ | ❌ | ❌ |
+| Simulate / Work orders | ✅ | ✅ | ❌ |
+| Alert acknowledgement | ✅ | ✅ | ❌ |
+| Maintenance notes | ✅ | ✅ | ❌ |
+| Email alerts / Reports | ✅ | ✅ | ❌ |
+| User management | ✅ | ❌ | ❌ |
+| PLC configuration | ✅ | ❌ | ❌ |
+| Threshold customization | ✅ | ❌ | ❌ |
+| View dashboard | ✅ | ✅ | ✅ |
+
+Default credentials: `admin` / `admin123` — **change after first login**
+
+---
+
 ## Quick Start
-
-## ⬇️ Download
-
-### Windows Installer (Recommended)
-[![Download](https://img.shields.io/badge/Download-Windows%20Installer-blue?style=for-the-badge&logo=windows)](https://github.com/SahDhirendra/openpmx/releases/download/v1.1.0/OpenPMX-Setup-v1.1.0.exe)
-
-**[Download OpenPMX-Setup-v1.1.0.exe](https://github.com/SahDhirendra/openpmx/releases/download/v1.1.0/OpenPMX-Setup-v1.1.0.exe)**
-
-1. Download the installer above
-2. Right-click → **Run as Administrator**
-3. Follow the setup wizard
-4. OpenPMX opens automatically in your browser
-
-> No Python, Node.js or any other software needed — everything is included.
 
 ### Option 1 — Live demo (no installation)
 Visit **[https://openpmx-frontend.onrender.com](https://openpmx-frontend.onrender.com)**
 
-### Option 2 — One command with Docker
+### Option 2 — Windows installer
+Download and run **[OpenPMX-Setup-v1.1.0.exe](https://github.com/SahDhirendra/openpmx/releases/download/v1.1.0/OpenPMX-Setup-v1.1.0.exe)**
+
+### Option 3 — Docker
 ```bash
 git clone https://github.com/SahDhirendra/openpmx
 cd openpmx
@@ -91,7 +132,7 @@ docker-compose up
 ```
 Open **http://localhost:5173**
 
-### Option 3 — Manual setup
+### Option 4 — Manual setup
 
 **Backend:**
 ```bash
@@ -108,45 +149,45 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```bash
 cd dashboard
 npm install --legacy-peer-deps
-npm run dev
+npm run dev -- --host
 ```
 
-Open **http://localhost:5173**
+Open **http://localhost:5173** and login with `admin` / `admin123`
 
-### Option 4 — Raspberry Pi edge agent
+### Option 5 — Raspberry Pi edge agent
 ```bash
 cd edge
-pip3 install requests
+pip3 install requests pycomm3 asyncua pymodbus
 python3 agent.py
 ```
 
 ---
 
-## How to use CSV upload
+## PLC Connection
 
-1. Export sensor data from your SCADA or historian as CSV
-2. CSV can have any column names — temperature, pressure, vibration, current, etc.
-3. Click **"📂 Upload Your CSV"** on the dashboard
-4. Platform auto-detects columns and trains model on your data
-5. Get instant health scores for your specific machine
+OpenPMX connects to any PLC brand:
 
-**Example CSV format:**
-```csv
-timestamp,temperature,vibration,pressure,current
-2026-01-01 08:00:00,45.2,0.12,4.3,8.1
-2026-01-01 08:10:00,45.5,0.13,4.2,8.2
-```
+| Brand | Protocol | Library |
+|-------|----------|---------|
+| Allen-Bradley | EtherNet/IP | pycomm3 |
+| Siemens | S7 | python-snap7 |
+| Any brand | Modbus TCP | pymodbus |
+| Modern PLCs | OPC-UA | asyncua |
+
+**Setup:** Dashboard → 🔌 PLC → Select brand → Enter IP → Browse Tags → Select → Save  
+Edge agent auto-detects config changes within 30 seconds — no manual steps needed.
 
 ---
 
 ## Architecture
 Factory Floor (PLC/Sensors)
-↓ OPC-UA / Modbus / EtherNet-IP
+↓ OPC-UA / EtherNet-IP / Modbus
 Raspberry Pi (Edge Agent)
 ↓ HTTPS + WebSocket
 FastAPI Backend (PC or Cloud)
 ↓ WebSocket real-time push
 React Dashboard (Browser or TV)
+
 
 ---
 
@@ -157,12 +198,10 @@ React Dashboard (Browser or TV)
 | [Manufacturer Guide](docs/MANUFACTURER_GUIDE.md) | For plant managers — no coding required |
 | [Setup Guide](docs/SETUP.md) | For developers and IT teams |
 | [API Reference](docs/API.md) | Full API documentation |
-| [Contributing](CONTRIBUTING.md) | How to contribute to the project |
-| [Development Phases](PHASES.md) | Project roadmap and progress |
+| [Contributing](CONTRIBUTING.md) | How to contribute |
+| [Development Phases](PHASES.md) | Project roadmap |
 
 ---
-
-## Development Phases
 
 ## Development Phases
 
@@ -173,6 +212,8 @@ React Dashboard (Browser or TV)
 - [x] Phase 5 — Docker + Render cloud deployment
 - [x] Phase 6 — Raspberry Pi edge agent + TV kiosk mode
 - [x] Phase 7 — CSV upload, OEE, email alerts, work orders, cost calculator
+- [x] Phase 8 — User auth, PLC connector, mobile responsive, auto-update
+- [x] Phase 9 — Alert acknowledgement, maintenance log, threshold customization, CSV export
 
 ---
 
@@ -181,10 +222,10 @@ React Dashboard (Browser or TV)
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 Priority areas:
-- OPC-UA protocol adapter
-- Multi-machine fleet dashboard
-- Mobile responsive design
-- Federated learning module
+- Federated learning across factories
+- Computer vision defect detection
+- Digital twin integration
+- Additional PLC protocol support
 
 ---
 
@@ -198,4 +239,13 @@ Controls & Automation Engineer | MS Mechatronics, NDSU
 
 ## License
 
-MIT License — free to use, modify, and distribute.
+Copyright 2026 Dhirendra K. Sah
+
+Licensed under the **Apache License 2.0** — free to use, modify, and distribute with attribution.
+
+You must:
+- Give appropriate credit to **Dhirendra K. Sah**
+- Include a copy of this license
+- State any changes you made
+
+See [LICENSE](LICENSE) for full details.
