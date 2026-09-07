@@ -889,6 +889,11 @@ def get_plc_config():
 def save_plc_config(config: dict):
     """Save PLC configuration"""
     import json
+    import time
+    
+    # Add timestamp so edge agent knows config changed
+    config["updated_at"] = time.time()
+    
     with open("plc_config.json", "w") as f:
         json.dump(config, f, indent=2)
     logger.info(f"PLC config saved: {config.get('plc_type')} at {config.get('plc_ip')}")
