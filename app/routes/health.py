@@ -19,7 +19,7 @@ from app.core.monthly_report import generate_monthly_report
 from app.core.version import get_version, check_for_updates
 from app.core.logger import logger
 from app.core.database import get_db, SensorReadingDB, AlertDB, DowntimeEventDB, MachineDB
-
+from app.core.database import get_db, SensorReadingDB, AlertDB, DowntimeEventDB, MachineDB, UserDB, MachineNoteDB
 
 router = APIRouter()
 
@@ -1077,3 +1077,55 @@ def update_thresholds(thresholds: dict):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/notes/{machine_id}")
+def get_notes(machine_id: str, limit: int = 50, db: Session = Depends(get_db)):
+    """Get maintenance notes for a machine"""
+    notes = db.query(MachineNoteDB)\
+        .filter(MachineNoteDB.machine_id == machine_id)\
+        .order_by(MachineNoteDB.created_at.desc())\
+        .limit(limit)\
+        .all()
+    return {
+        "machine_id": machine_id,
+        "notes": [
+            {
+                "id": n.id,
+                "note": n.note,
+                "author": n.author,
+                "category": n.category,
+                "created_at": n.created_at.isoformat()
+            }
+            for n in notes
+        ]
+    }
+
+@router.post("/notes/{machine_id}")
+def add_note(
+        machine_id: str,
+        note: str,
+        author: str,
+        category: str = "general",
+        db: Session = Depends(get_db)
+    ):
+        """Add a maintenance note for a machine"""
+        db_note = MachineNoteDB(
+            machine_id=machine_id,
+            note=note,
+            author=author,
+            category=category
+        )
+        db.add(db_note)
+        db.commit()
+        logger.info(f"Note added for {machine_id} by {author}")
+        return {"status": "added", "machine_id": machine_id}
+
+@router.delete("/notes/{note_id}")
+def delete_note(note_id: int, db: Session = Depends(get_db)):
+        """Delete a maintenance note"""
+        note = db.query(MachineNoteDB).filter(MachineNoteDB.id == note_id).first()
+        if not note:
+            raise HTTPException(status_code=404, detail="Note not found")
+        db.delete(note)
+        db.commit()
+        return {"status": "deleted"}

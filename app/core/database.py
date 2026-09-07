@@ -103,6 +103,15 @@ class UserDB(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
 
+class MachineNoteDB(Base):
+    __tablename__ = "machine_notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    machine_id = Column(String, index=True)
+    note = Column(String)
+    author = Column(String)
+    category = Column(String, default="general")  # general, maintenance, repair, inspection
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 def init_db():
     """Create all tables and default admin user"""

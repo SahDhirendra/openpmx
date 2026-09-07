@@ -145,6 +145,9 @@ export default function App() {
   bearing1: "", bearing2: "", bearing3: "", bearing4: ""})
   const [thresholdsSaved, setThresholdsSaved] = useState(false)
   const [historyRange, setHistoryRange] = useState("24")
+  const [showNotes, setShowNotes] = useState(false)
+  const [notes, setNotes] = useState([])
+  const [newNote, setNewNote] = useState({ note: "", category: "general" })
 
   useEffect(() => {
     const handleResize = () => setMobile(isMobile())
@@ -289,6 +292,46 @@ const saveThresholds = async () => {
     setError("Failed to save thresholds")
   }
 }
+
+const loadNotes = async () => {
+  try {
+    const res = await axios.get(`${API_URL}/notes/${selectedMachine}`)
+    setNotes(res.data.notes)
+  } catch (e) {
+    console.error("Failed to load notes:", e)
+  }
+}
+
+const addNote = async () => {
+  if (!newNote.note.trim()) {
+    setError("Note cannot be empty")
+    return
+  }
+  try {
+    await axios.post(`${API_URL}/notes/${selectedMachine}`, null, {
+      params: {
+        note: newNote.note,
+        author: user.username,
+        category: newNote.category
+      }
+    })
+    setNewNote({ note: "", category: "general" })
+    await loadNotes()
+  } catch (e) {
+    console.error("Add note error:", e)
+    setError(e.response?.data?.detail || "Failed to add note")
+  }
+}
+
+const deleteNote = async (noteId) => {
+  try {
+    await axios.delete(`${API_URL}/notes/${noteId}`)
+    await loadNotes()
+  } catch (e) {
+    setError("Failed to delete note")
+  }
+}
+
 
   const loadUsers = async () => {
     try {
@@ -775,7 +818,13 @@ const saveThresholds = async () => {
               📊 {!mobile && "Report"}
             </button>
           )}
-
+          {/* Admin and Technician — Show Notes */}
+          {(user?.role === "admin" || user?.role === "technician") && (
+              <button onClick={() => { setShowNotes(!showNotes); loadNotes() }}
+                style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
+                📝 {!mobile && "Notes"}
+              </button>
+            )}
           {/* Admin and Technician — Alert Settings */}
           {(user?.role === "admin" || user?.role === "technician") && (
             <button onClick={() => setShowEmailConfig(!showEmailConfig)} style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
@@ -1386,6 +1435,87 @@ const saveThresholds = async () => {
             </div>
           </div>
         )}
+
+      {/* Machine Notes Panel */}
+      {showNotes && (user?.role === "admin" || user?.role === "technician") && (
+        <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
+          <h2 style={{ margin: "0 0 14px", fontSize: "15px", fontWeight: 600 }}>
+            📝 Maintenance Log — {selectedMachine}
+          </h2>
+
+          {/* Add new note */}
+          <div style={{ marginBottom: "16px", background: "#F8F9FA", borderRadius: "8px", padding: "12px" }}>
+            <h3 style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 8px" }}>Add Note</h3>
+            <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr auto", gap: "8px", marginBottom: "8px" }}>
+              <textarea
+                placeholder="What did you do? e.g. Replaced bearing 3, added lubrication..."
+                value={newNote.note}
+                onChange={e => setNewNote({...newNote, note: e.target.value})}
+                rows={2}
+                style={{
+                  width: "100%", padding: "8px 10px", borderRadius: "6px",
+                  border: "1px solid #ddd", fontSize: "13px",
+                  boxSizing: "border-box", resize: "vertical"
+                }}
+              />
+              <select value={newNote.category}
+                onChange={e => setNewNote({...newNote, category: e.target.value})}
+                style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }}>
+                <option value="general">General</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="repair">Repair</option>
+                <option value="inspection">Inspection</option>
+                <option value="lubrication">Lubrication</option>
+                <option value="calibration">Calibration</option>
+              </select>
+            </div>
+            <button onClick={addNote} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
+              + Add Note
+            </button>
+          </div>
+
+          {/* Notes list */}
+          {notes.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {notes.map(n => (
+                <div key={n.id} style={{
+                  border: "1px solid #eee", borderRadius: "8px", padding: "12px",
+                  borderLeft: `4px solid ${
+                    n.category === "repair" ? "#E24B4A" :
+                    n.category === "maintenance" ? "#1D9E75" :
+                    n.category === "inspection" ? "#378ADD" :
+                    n.category === "lubrication" ? "#EF9F27" :
+                    n.category === "calibration" ? "#7F77DD" : "#ddd"
+                  }`
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "13px", color: "#1a1a1a", marginBottom: "4px" }}>{n.note}</div>
+                      <div style={{ fontSize: "11px", color: "#888" }}>
+                        <span style={{
+                          background: "#F8F9FA", padding: "1px 6px",
+                          borderRadius: "4px", marginRight: "6px", textTransform: "capitalize"
+                        }}>{n.category}</span>
+                        By <strong>{n.author}</strong> · {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                    {user?.role === "admin" && (
+                      <button onClick={() => deleteNote(n.id)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "#E24B4A", fontSize: "14px" }}>
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", color: "#888", fontSize: "13px", padding: "20px" }}>
+              No maintenance notes yet. Add the first note above.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* OEE Widget */}
       {oee && (
