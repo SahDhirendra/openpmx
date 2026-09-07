@@ -7,7 +7,6 @@ const API_URL = import.meta.env.VITE_API_URL ||
     `http://${window.location.hostname}:8000`)
 const WS_URL = API_URL.replace("http", "ws").replace("https", "wss")
 
-// Detect mobile
 const isMobile = () => window.innerWidth < 768
 
 function HealthCard({ name, health, status, rms, threshold }) {
@@ -66,7 +65,6 @@ function HealthCard({ name, health, status, rms, threshold }) {
 }
 
 export default function App() {
-  const [updateInfo, setUpdateInfo] = useState(null)
   const [health, setHealth] = useState(null)
   const [loading, setLoading] = useState(false)
   const [csvLoading, setCsvLoading] = useState(false)
@@ -99,10 +97,21 @@ export default function App() {
   const [selectedMachine, setSelectedMachine] = useState("machine_001")
   const [newMachine, setNewMachine] = useState({ machine_id: "", name: "", location: "" })
   const [mobile, setMobile] = useState(isMobile())
+  const [updateInfo, setUpdateInfo] = useState(null)
+
+  // Auth states
+  const [token, setToken] = useState(localStorage.getItem('openpmx_token') || null)
+  const [user, setUser] = useState(null)
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" })
+  const [loginError, setLoginError] = useState(null)
+  const [loginLoading, setLoginLoading] = useState(false)
+  const [showUserManager, setShowUserManager] = useState(false)
+  const [users, setUsers] = useState([])
+  const [newUser, setNewUser] = useState({ username: "", email: "", password: "", role: "viewer" })
+
   const wsRef = useRef(null)
   const pingRef = useRef(null)
 
-  // Handle resize
   useEffect(() => {
     const handleResize = () => setMobile(isMobile())
     window.addEventListener('resize', handleResize)
@@ -110,6 +119,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    verifyToken()
     connectWebSocket()
     checkHealth()
     checkForUpdates()
@@ -118,6 +128,79 @@ export default function App() {
       if (pingRef.current) clearInterval(pingRef.current)
     }
   }, [])
+
+  // ─── Auth functions ───
+
+  const login = async () => {
+    setLoginLoading(true)
+    setLoginError(null)
+    try {
+      const formData = new FormData()
+      formData.append("username", loginForm.username)
+      formData.append("password", loginForm.password)
+      const res = await axios.post(`${API_URL}/auth/login`, formData)
+      const { access_token, username, role, email } = res.data
+      localStorage.setItem('openpmx_token', access_token)
+      setToken(access_token)
+      setUser({ username, role, email })
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`
+    } catch (e) {
+      setLoginError("Incorrect username or password")
+    }
+    setLoginLoading(false)
+  }
+
+  const logout = () => {
+    localStorage.removeItem('openpmx_token')
+    setToken(null)
+    setUser(null)
+    delete axios.defaults.headers.common['Authorization']
+  }
+
+  const verifyToken = async () => {
+    if (!token) return
+    try {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      const res = await axios.get(`${API_URL}/auth/me`)
+      setUser(res.data)
+    } catch (e) {
+      logout()
+    }
+  }
+
+  const loadUsers = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auth/users`)
+      setUsers(res.data.users)
+    } catch (e) {
+      console.error("Failed to load users:", e)
+    }
+  }
+
+  const createUser = async () => {
+    if (!newUser.username || !newUser.password || !newUser.email) {
+      setError("Username, email and password are required")
+      return
+    }
+    try {
+      await axios.post(`${API_URL}/auth/users`, newUser)
+      setNewUser({ username: "", email: "", password: "", role: "viewer" })
+      await loadUsers()
+    } catch (e) {
+      setError(e.response?.data?.detail || "Failed to create user")
+    }
+  }
+
+  const deleteUser = async (username) => {
+    try {
+      await axios.delete(`${API_URL}/auth/users/${username}`)
+      await loadUsers()
+    } catch (e) {
+      setError("Failed to delete user")
+    }
+  }
+
+  // ─── Data functions ───
 
   const loadHistory = async () => {
     try {
@@ -175,13 +258,12 @@ export default function App() {
   const checkForUpdates = async () => {
     try {
       const res = await axios.get(`${API_URL}/check-updates`)
-      if (res.data.update_available) {
-        setUpdateInfo(res.data)
-      }
+      if (res.data.update_available) setUpdateInfo(res.data)
     } catch (e) {
       console.log("Update check failed:", e)
     }
   }
+
   const connectWebSocket = () => {
     try {
       const ws = new WebSocket(`${WS_URL}/ws`)
@@ -234,6 +316,8 @@ export default function App() {
       setConnected(false)
     }
   }
+
+  // ─── Action functions ───
 
   const trainModel = async () => {
     setLoading(true)
@@ -359,8 +443,7 @@ export default function App() {
     try {
       const res = await axios.post(
         `${API_URL}/generate-monthly-report?machine_id=machine_001&hourly_rate=${costConfig.hourly_rate}&repair_cost=${costConfig.repair_cost}`,
-        {},
-        { responseType: "blob" }
+        {}, { responseType: "blob" }
       )
       const url = window.URL.createObjectURL(new Blob([res.data]))
       const link = document.createElement("a")
@@ -402,6 +485,66 @@ export default function App() {
     fontSize: mobile ? "12px" : "14px", fontWeight: 500
   }
 
+  // ─── Login page ───
+  if (!token || !user) {
+    return (
+      <div style={{
+        fontFamily: "system-ui, sans-serif",
+        background: "linear-gradient(135deg, #f0fdf8 0%, #e8f5ff 100%)",
+        minHeight: "100vh",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "24px"
+      }}>
+        <div style={{
+          background: "white", borderRadius: "16px", padding: "40px",
+          width: "100%", maxWidth: "400px",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.08)"
+        }}>
+          <div style={{ textAlign: "center", marginBottom: "32px" }}>
+            <h1 style={{ margin: "0 0 4px", fontSize: "28px", fontWeight: 700, color: "#1D9E75" }}>OpenPMX</h1>
+            <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>Predictive Maintenance Platform</p>
+          </div>
+
+          <div style={{ marginBottom: "16px" }}>
+            <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "6px" }}>Username</label>
+            <input type="text" placeholder="admin" value={loginForm.username}
+              onChange={e => setLoginForm({...loginForm, username: e.target.value})}
+              onKeyDown={e => e.key === 'Enter' && login()}
+              style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "14px", boxSizing: "border-box" }} />
+          </div>
+
+          <div style={{ marginBottom: "24px" }}>
+            <label style={{ fontSize: "13px", color: "#666", display: "block", marginBottom: "6px" }}>Password</label>
+            <input type="password" placeholder="••••••••" value={loginForm.password}
+              onChange={e => setLoginForm({...loginForm, password: e.target.value})}
+              onKeyDown={e => e.key === 'Enter' && login()}
+              style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "14px", boxSizing: "border-box" }} />
+          </div>
+
+          {loginError && (
+            <div style={{ background: "#FAECE7", border: "1px solid #E24B4A", borderRadius: "8px", padding: "10px 14px", color: "#712B13", fontSize: "13px", marginBottom: "16px" }}>
+              ⚠️ {loginError}
+            </div>
+          )}
+
+          <button onClick={login} disabled={loginLoading} style={{
+            width: "100%", background: "#1D9E75", color: "white",
+            border: "none", padding: "12px", borderRadius: "8px",
+            fontSize: "15px", fontWeight: 600, cursor: "pointer"
+          }}>
+            {loginLoading ? "Signing in..." : "Sign In"}
+          </button>
+
+          <div style={{ marginTop: "20px", padding: "12px", background: "#F8F9FA", borderRadius: "8px", fontSize: "12px", color: "#666", textAlign: "center" }}>
+            Default: <strong>admin</strong> / <strong>admin123</strong><br/>
+            Change password after first login
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── Main dashboard ───
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", background: "#F8F9FA", minHeight: "100vh", padding: mobile ? "12px" : "24px" }}>
 
@@ -411,18 +554,25 @@ export default function App() {
           <h1 style={{ margin: 0, fontSize: mobile ? "20px" : "24px", fontWeight: 700 }}>OpenPMX</h1>
           {!mobile && <p style={{ margin: "4px 0 0", color: "#666", fontSize: "14px" }}>Open-source predictive maintenance platform</p>}
         </div>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          {!trained && (
-              <button onClick={trainModel} disabled={loading} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
-                {loading ? "Training..." : "Train Model"}
-              </button>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+
+          {/* Admin only — Train model */}
+          {!trained && user?.role === "admin" && (
+            <button onClick={trainModel} disabled={loading} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
+              {loading ? "Training..." : "Train Model"}
+            </button>
           )}
-            {/* CSV upload always visible */}
+
+          {/* Admin only — Upload CSV */}
+          {!trained && user?.role === "admin" && (
             <label style={{ ...btnStyle, background: "#378ADD", color: "white", display: "inline-block" }}>
               {csvLoading ? "Uploading..." : "📂 Upload CSV"}
               <input type="file" accept=".csv" style={{ display: "none" }} onChange={handleCSVUpload} />
             </label>
-          {trained && (
+          )}
+
+          {/* Admin and Technician — Simulate + Work Order */}
+          {trained && (user?.role === "admin" || user?.role === "technician") && (
             <>
               <button onClick={() => runPrediction("healthy")} disabled={loading} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
                 {loading ? "..." : "✅ Healthy"}
@@ -433,23 +583,79 @@ export default function App() {
               <button onClick={generateWorkOrder} style={{ ...btnStyle, background: "#7F77DD", color: "white" }}>
                 📋 {!mobile && "Work Order"}
               </button>
-              <button onClick={generateMonthlyReport} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
-                📊 {!mobile && "Monthly Report"}
-              </button>
-              
             </>
           )}
-          <button onClick={() => setShowEmailConfig(!showEmailConfig)} style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
-            ⚙️ {!mobile && "Alerts"}
-          </button>
-          <button onClick={() => setShowCostCalc(!showCostCalc)} style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
-            💰 {!mobile && "Savings"}
-          </button>
-          <button onClick={() => setShowMachineManager(!showMachineManager)} style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
-            🏭 {!mobile && "Machines"}
-          </button>
+
+          {/* Admin and Technician — Monthly Report */}
+          {trained && (user?.role === "admin" || user?.role === "technician") && (
+            <button onClick={generateMonthlyReport} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>
+              📊 {!mobile && "Report"}
+            </button>
+          )}
+
+          {/* Admin and Technician — Alert Settings */}
+          {(user?.role === "admin" || user?.role === "technician") && (
+            <button onClick={() => setShowEmailConfig(!showEmailConfig)} style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
+              ⚙️ {!mobile && "Alerts"}
+            </button>
+          )}
+
+          {/* Admin and Technician — Cost Savings */}
+          {(user?.role === "admin" || user?.role === "technician") && (
+            <button onClick={() => setShowCostCalc(!showCostCalc)} style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
+              💰 {!mobile && "Savings"}
+            </button>
+          )}
+
+          {/* Admin only — Machines */}
+          {user?.role === "admin" && (
+            <button onClick={() => setShowMachineManager(!showMachineManager)} style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
+              🏭 {!mobile && "Machines"}
+            </button>
+          )}
+
+          {/* Admin only — Users */}
+          {user?.role === "admin" && (
+            <button onClick={() => { setShowUserManager(!showUserManager); loadUsers() }} style={{ ...btnStyle, background: "white", color: "#555", border: "1px solid #ddd" }}>
+              👥 {!mobile && "Users"}
+            </button>
+          )}
+
+          {/* User info and logout — always visible */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "12px", color: "#666", background: "#F8F9FA", padding: "6px 10px", borderRadius: "6px" }}>
+              👤 {user?.username} ({user?.role})
+            </span>
+            <button onClick={logout} style={{ ...btnStyle, background: "#FAECE7", color: "#712B13", border: "1px solid #E24B4A" }}>
+              Sign Out
+            </button>
+          </div>
+
         </div>
       </div>
+
+      {/* Update banner */}
+      {updateInfo && (
+        <div style={{ background: "#E6F1FB", border: "2px solid #378ADD", borderRadius: "8px", padding: "12px 16px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "20px" }}>🆕</span>
+            <div>
+              <div style={{ fontWeight: 600, color: "#0C447C", fontSize: "14px" }}>Update available — v{updateInfo.latest_version}</div>
+              <div style={{ fontSize: "12px", color: "#378ADD" }}>You are on v{updateInfo.current_version}</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <a href={updateInfo.release_url} target="_blank" rel="noreferrer"
+              style={{ background: "#378ADD", color: "white", padding: "8px 16px", borderRadius: "6px", textDecoration: "none", fontSize: "13px", fontWeight: 500 }}>
+              Download Update
+            </a>
+            <button onClick={() => setUpdateInfo(null)}
+              style={{ background: "none", border: "1px solid #378ADD", color: "#378ADD", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* CSV Result */}
       {csvResult && (
@@ -466,43 +672,6 @@ export default function App() {
       {error && (
         <div style={{ background: "#FAECE7", border: "1px solid #E24B4A", borderRadius: "8px", padding: "12px 16px", color: "#712B13", marginBottom: "16px", fontSize: "13px" }}>
           ⚠️ {error}
-        </div>
-      )}
-
-      {/* Update available banner */}
-      {updateInfo && (
-        <div style={{
-          background: "#E6F1FB", border: "2px solid #378ADD",
-          borderRadius: "8px", padding: "12px 16px",
-          marginBottom: "16px", display: "flex",
-          alignItems: "center", justifyContent: "space-between",
-          flexWrap: "wrap", gap: "10px"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "20px" }}>🆕</span>
-            <div>
-              <div style={{ fontWeight: 600, color: "#0C447C", fontSize: "14px" }}>
-                Update available — v{updateInfo.latest_version}
-              </div>
-              <div style={{ fontSize: "12px", color: "#378ADD" }}>
-                You are on v{updateInfo.current_version}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <a href={updateInfo.release_url} target="_blank" rel="noreferrer"
-              style={{ background: "#378ADD", color: "white", padding: "8px 16px",
-                      borderRadius: "6px", textDecoration: "none", fontSize: "13px",
-                      fontWeight: 500 }}>
-              Download Update
-            </a>
-            <button onClick={() => setUpdateInfo(null)}
-              style={{ background: "none", border: "1px solid #378ADD",
-                      color: "#378ADD", padding: "8px 16px", borderRadius: "6px",
-                      cursor: "pointer", fontSize: "13px" }}>
-              Dismiss
-            </button>
-          </div>
         </div>
       )}
 
@@ -553,39 +722,44 @@ export default function App() {
       {health && health.bearings && (
         <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: "12px", marginBottom: "16px" }}>
           {Object.entries(health.bearings).map(([name, data]) => (
-            <HealthCard key={name} name={name.replace("bearing", "B")} health={data.health_score} status={data.status} rms={data.rms} threshold={data.threshold} />
+            <HealthCard key={name} name={name.replace("bearing", "Bearing ")} health={data.health_score} status={data.status} rms={data.rms} threshold={data.threshold} />
           ))}
         </div>
       )}
 
       {/* Email Config Panel */}
-      {showEmailConfig && (
+      {showEmailConfig && (user?.role === "admin" || user?.role === "technician") && (
         <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
           <h2 style={{ margin: "0 0 14px", fontSize: "15px", fontWeight: 600 }}>⚙️ Alert Email Configuration</h2>
           <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
             <div style={{ gridColumn: mobile ? "1" : "1 / -1" }}>
               <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>Recipient Emails (comma separated)</label>
-              <input type="text" placeholder="maintenance@factory.com" value={emailConfig.emails} onChange={e => setEmailConfig({...emailConfig, emails: e.target.value})}
+              <input type="text" placeholder="maintenance@factory.com" value={emailConfig.emails}
+                onChange={e => setEmailConfig({...emailConfig, emails: e.target.value})}
                 style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
             </div>
             <div>
               <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>SMTP Server</label>
-              <input type="text" value={emailConfig.smtp_server} onChange={e => setEmailConfig({...emailConfig, smtp_server: e.target.value})}
+              <input type="text" value={emailConfig.smtp_server}
+                onChange={e => setEmailConfig({...emailConfig, smtp_server: e.target.value})}
                 style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
             </div>
             <div>
               <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>Port</label>
-              <input type="number" value={emailConfig.smtp_port} onChange={e => setEmailConfig({...emailConfig, smtp_port: e.target.value})}
+              <input type="number" value={emailConfig.smtp_port}
+                onChange={e => setEmailConfig({...emailConfig, smtp_port: e.target.value})}
                 style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
             </div>
             <div>
               <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>Email Username</label>
-              <input type="email" placeholder="your.email@gmail.com" value={emailConfig.smtp_username} onChange={e => setEmailConfig({...emailConfig, smtp_username: e.target.value})}
+              <input type="email" placeholder="your.email@gmail.com" value={emailConfig.smtp_username}
+                onChange={e => setEmailConfig({...emailConfig, smtp_username: e.target.value})}
                 style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
             </div>
             <div>
               <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>App Password</label>
-              <input type="password" placeholder="Gmail app password" value={emailConfig.smtp_password} onChange={e => setEmailConfig({...emailConfig, smtp_password: e.target.value})}
+              <input type="password" placeholder="Gmail app password" value={emailConfig.smtp_password}
+                onChange={e => setEmailConfig({...emailConfig, smtp_password: e.target.value})}
                 style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
             </div>
           </div>
@@ -598,18 +772,20 @@ export default function App() {
       )}
 
       {/* Cost Calculator Panel */}
-      {showCostCalc && (
+      {showCostCalc && (user?.role === "admin" || user?.role === "technician") && (
         <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
           <h2 style={{ margin: "0 0 14px", fontSize: "15px", fontWeight: 600 }}>💰 Cost Savings Calculator</h2>
           <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
             <div>
               <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>Machine Hourly Rate ($/hr)</label>
-              <input type="number" value={costConfig.hourly_rate} onChange={e => setCostConfig({...costConfig, hourly_rate: parseFloat(e.target.value)})}
+              <input type="number" value={costConfig.hourly_rate}
+                onChange={e => setCostConfig({...costConfig, hourly_rate: parseFloat(e.target.value)})}
                 style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
             </div>
             <div>
               <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>Average Repair Cost ($)</label>
-              <input type="number" value={costConfig.repair_cost} onChange={e => setCostConfig({...costConfig, repair_cost: parseFloat(e.target.value)})}
+              <input type="number" value={costConfig.repair_cost}
+                onChange={e => setCostConfig({...costConfig, repair_cost: parseFloat(e.target.value)})}
                 style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
             </div>
           </div>
@@ -642,8 +818,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Machine Manager Panel */}
-      {showMachineManager && (
+      {/* Machine Manager Panel — admin only */}
+      {showMachineManager && user?.role === "admin" && (
         <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
           <h2 style={{ margin: "0 0 14px", fontSize: "15px", fontWeight: 600 }}>🏭 Machine Fleet Manager</h2>
           {machines.length > 0 && (
@@ -669,14 +845,84 @@ export default function App() {
           )}
           <h3 style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 8px" }}>Add New Machine</h3>
           <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr 1fr", gap: "8px", marginBottom: "10px" }}>
-            <input type="text" placeholder="Machine ID" value={newMachine.machine_id} onChange={e => setNewMachine({...newMachine, machine_id: e.target.value})}
+            <input type="text" placeholder="Machine ID" value={newMachine.machine_id}
+              onChange={e => setNewMachine({...newMachine, machine_id: e.target.value})}
               style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }} />
-            <input type="text" placeholder="Machine Name" value={newMachine.name} onChange={e => setNewMachine({...newMachine, name: e.target.value})}
+            <input type="text" placeholder="Machine Name" value={newMachine.name}
+              onChange={e => setNewMachine({...newMachine, name: e.target.value})}
               style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }} />
-            <input type="text" placeholder="Location" value={newMachine.location} onChange={e => setNewMachine({...newMachine, location: e.target.value})}
+            <input type="text" placeholder="Location" value={newMachine.location}
+              onChange={e => setNewMachine({...newMachine, location: e.target.value})}
               style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }} />
           </div>
           <button onClick={registerMachine} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>+ Add Machine</button>
+        </div>
+      )}
+
+      {/* User Manager Panel — admin only */}
+      {showUserManager && user?.role === "admin" && (
+        <div style={{ background: "white", border: "1px solid #ddd", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
+          <h2 style={{ margin: "0 0 14px", fontSize: "15px", fontWeight: 600 }}>👥 User Management</h2>
+          {users.length > 0 && (
+            <div style={{ marginBottom: "16px", overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ background: "#F8F9FA" }}>
+                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #eee" }}>Username</th>
+                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #eee" }}>Email</th>
+                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #eee" }}>Role</th>
+                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #eee" }}>Last Login</th>
+                    <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid #eee" }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(u => (
+                    <tr key={u.username} style={{ borderBottom: "1px solid #eee" }}>
+                      <td style={{ padding: "8px", fontWeight: 500 }}>{u.username}</td>
+                      <td style={{ padding: "8px", color: "#666" }}>{u.email}</td>
+                      <td style={{ padding: "8px" }}>
+                        <span style={{
+                          background: u.role === "admin" ? "#FAECE7" : u.role === "technician" ? "#E6F1FB" : "#E1F5EE",
+                          color: u.role === "admin" ? "#712B13" : u.role === "technician" ? "#0C447C" : "#085041",
+                          padding: "2px 8px", borderRadius: "99px", fontSize: "11px"
+                        }}>{u.role}</span>
+                      </td>
+                      <td style={{ padding: "8px", color: "#666", fontSize: "11px" }}>
+                        {u.last_login ? new Date(u.last_login).toLocaleString() : "Never"}
+                      </td>
+                      <td style={{ padding: "8px" }}>
+                        {u.username !== user.username && (
+                          <button onClick={() => deleteUser(u.username)}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "#E24B4A", fontSize: "14px" }}>
+                            🗑️
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <h3 style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 8px" }}>Add New User</h3>
+          <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
+            <input type="text" placeholder="Username" value={newUser.username}
+              onChange={e => setNewUser({...newUser, username: e.target.value})}
+              style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }} />
+            <input type="email" placeholder="Email" value={newUser.email}
+              onChange={e => setNewUser({...newUser, email: e.target.value})}
+              style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }} />
+            <input type="password" placeholder="Password" value={newUser.password}
+              onChange={e => setNewUser({...newUser, password: e.target.value})}
+              style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }} />
+            <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}
+              style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px" }}>
+              <option value="viewer">Viewer — read only</option>
+              <option value="technician">Technician — view + work orders</option>
+              <option value="admin">Admin — full access</option>
+            </select>
+          </div>
+          <button onClick={createUser} style={{ ...btnStyle, background: "#1D9E75", color: "white" }}>+ Add User</button>
         </div>
       )}
 
@@ -749,7 +995,7 @@ export default function App() {
         </div>
         {history.length > 0 ? (
           <div style={{ width: "100%", overflowX: "auto" }}>
-            <svg width="100%" height={mobile ? "200" : "300"} viewBox={`0 0 ${Math.max(history.length * 20, 600)} ${mobile ? 200 : 300}`}>
+            <svg width="100%" height={mobile ? "220" : "320"} viewBox={`0 0 ${Math.max(history.length * 20, 600)} ${mobile ? 220 : 320}`}>
               {[0, 25, 50, 75, 100].map(v => (
                 <g key={v}>
                   <line x1="40" y1={mobile ? (180 - v * 1.6) : (260 - v * 2.2)} x2={Math.max(history.length * 20, 600)} y2={mobile ? (180 - v * 1.6) : (260 - v * 2.2)} stroke="#f0f0f0" strokeWidth="1" />
@@ -763,18 +1009,17 @@ export default function App() {
                 const points = history.map((h, i) => `${40 + i * 20},${maxY - (h[key] || 0) * scale}`).join(" ")
                 return <polyline key={key} points={points} fill="none" stroke={colors[idx]} strokeWidth="2" />
               })}
-              {["B1", "B2", "B3", "B4"].map((name, idx) => {
-              const colors = ["#1D9E75", "#378ADD", "#E24B4A", "#EF9F27"]
-              const fullNames = ["Bearing 1", "Bearing 2", "Bearing 3", "Bearing 4"]
-              return (
-                <g key={name}>
-                  <rect x={45 + idx * (mobile ? 75 : 120)} y="6" width="12" height="12" rx="2" fill={colors[idx]} />
-                  <text x={62 + idx * (mobile ? 75 : 120)} y="17" fontSize={mobile ? "11" : "13"} fill="#444" fontWeight="500">
-                    {mobile ? name : fullNames[idx]}
-                  </text>
-                </g>
-              )
-            })}
+              {["Bearing 1", "Bearing 2", "Bearing 3", "Bearing 4"].map((name, idx) => {
+                const colors = ["#1D9E75", "#378ADD", "#E24B4A", "#EF9F27"]
+                return (
+                  <g key={name}>
+                    <rect x={45 + idx * (mobile ? 75 : 120)} y="6" width="12" height="12" rx="2" fill={colors[idx]} />
+                    <text x={62 + idx * (mobile ? 75 : 120)} y="17" fontSize={mobile ? "11" : "13"} fill="#444" fontWeight="500">
+                      {mobile ? name.replace("Bearing ", "B") : name}
+                    </text>
+                  </g>
+                )
+              })}
             </svg>
           </div>
         ) : (

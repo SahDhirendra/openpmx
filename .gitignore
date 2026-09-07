@@ -60,3 +60,6 @@ installer/nginx/
 .DS_Store
 Thumbs.db
 desktop.ini
+installer/installer/
+installer/output/
+*.exe

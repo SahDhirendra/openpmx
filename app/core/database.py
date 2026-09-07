@@ -86,10 +86,47 @@ class MachineDB(Base):
     overall_health = Column(Float, nullable=True)
     status = Column(String, default="unknown")
 
+class UserDB(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    role = Column(String, default="viewer")  # admin, technician, viewer
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)
+
+
 def init_db():
-    """Create all tables if they don't exist"""
+    """Create all tables and default admin user"""
     Base.metadata.create_all(bind=engine)
     print(f"Database initialized at: {DB_PATH}")
+    
+    # Create default admin user if no users exist
+    db = SessionLocal()
+    try:
+        # Import here to avoid circular import
+        from app.core.auth import get_password_hash
+        
+        user_count = db.query(UserDB).count()
+        if user_count == 0:
+            admin = UserDB(
+                username="admin",
+                email="admin@openpmx.io",
+                hashed_password=get_password_hash("admin123"),
+                role="admin",
+                is_active=True
+            )
+            db.add(admin)
+            db.commit()
+            print("Default admin user created — username: admin, password: admin123")
+            print("IMPORTANT: Change the password after first login!")
+    except Exception as e:
+        print(f"Could not create default admin: {e}")
+    finally:
+        db.close()
 
 def get_db():
     """Get database session"""

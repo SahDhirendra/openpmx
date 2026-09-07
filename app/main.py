@@ -6,6 +6,8 @@ from app.core.database import init_db, cleanup_old_data
 from app.core.logger import logger
 from app.core.predictor import predictor
 from app.core.config import config, MACHINE_ID, RETENTION_DAYS
+from app.routes.auth import router as auth_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -55,3 +57,4 @@ app.add_middleware(
 
 # Include routes
 app.include_router(router)
+app.include_router(auth_router)
