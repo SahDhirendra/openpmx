@@ -898,3 +898,69 @@ def save_plc_config(config: dict):
         json.dump(config, f, indent=2)
     logger.info(f"PLC config saved: {config.get('plc_type')} at {config.get('plc_ip')}")
     return {"status": "saved", "config": config}
+
+
+@router.post("/browse-plc-tags")
+async def browse_plc_tags(config: dict):
+    """
+    Connect to PLC and return list of available tags
+    Routes request to edge agent for actual PLC connection
+    """
+    import httpx
+    
+    plc_type = config.get("plc_type")
+    plc_ip = config.get("plc_ip")
+    plc_slot = config.get("plc_slot", 0)
+    
+    if not plc_ip:
+        raise HTTPException(status_code=400, detail="PLC IP address required")
+    
+    if plc_type == "allen_bradley":
+        try:
+            from pycomm3 import LogixDriver
+            tags = []
+            with LogixDriver(f"{plc_ip}/{plc_slot}") as plc:
+                # Get all tags from PLC
+                plc_tags = plc.get_tag_list()
+                for tag in plc_tags:
+                    tags.append({
+                        "name": tag.tag_name,
+                        "type": str(tag.data_type),
+                        "dimensions": tag.dimensions
+                    })
+            logger.info(f"Found {len(tags)} tags on PLC {plc_ip}")
+            return {"status": "connected", "tags": tags, "count": len(tags)}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"PLC connection failed: {str(e)}")
+
+    elif plc_type == "modbus":
+        # For Modbus return register range
+        tags = [{"name": str(i), "type": "HOLDING_REGISTER", "dimensions": 0} 
+                for i in range(1, 101)]
+        return {"status": "connected", "tags": tags, "count": len(tags)}
+
+    elif plc_type == "opcua":
+        try:
+            from asyncua.sync import Client
+            endpoint = config.get("opcua_endpoint")
+            tags = []
+            with Client(url=endpoint) as client:
+                # Browse root node
+                root = client.get_root_node()
+                objects = root.get_child(["0:Objects"])
+                for node in objects.get_children():
+                    try:
+                        name = node.read_browse_name().Name
+                        tags.append({
+                            "name": f"ns=2;s={name}",
+                            "type": "OPC-UA Node",
+                            "dimensions": 0
+                        })
+                    except Exception:
+                        pass
+            return {"status": "connected", "tags": tags, "count": len(tags)}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"OPC-UA connection failed: {str(e)}")
+
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported PLC type for tag browsing")

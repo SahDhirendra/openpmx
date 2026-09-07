@@ -108,7 +108,9 @@ export default function App() {
   const [showUserManager, setShowUserManager] = useState(false)
   const [users, setUsers] = useState([])
   const [newUser, setNewUser] = useState({ username: "", email: "", password: "", role: "viewer" })
-
+  const [plcTags, setPLCTags] = useState([])
+  const [browsingTags, setBrowsingTags] = useState(false)
+  const [tagSearch, setTagSearch] = useState("")
 
   const [showPLCConfig, setShowPLCConfig] = useState(false)
   const [plcConfig, setPLCConfig] = useState({
@@ -512,6 +514,22 @@ export default function App() {
     }
   }
 
+  const browsePLCTags = async () => {
+  if (!plcConfig.plc_ip && plcConfig.plc_type !== "simulation") {
+    setError("Enter PLC IP address first")
+    return
+  }
+  setBrowsingTags(true)
+  setPLCTags([])
+  try {
+    const res = await axios.post(`${API_URL}/browse-plc-tags`, plcConfig)
+    setPLCTags(res.data.tags)
+    alert(`Found ${res.data.count} tags on PLC!`)
+  } catch (e) {
+    setError(e.response?.data?.detail || "Failed to connect to PLC")
+  }
+  setBrowsingTags(false)
+}
 
 
   const btnStyle = {
@@ -1025,28 +1043,75 @@ export default function App() {
             )}
           </div>
 
-          {/* Tag configuration */}
-          {plcConfig.plc_type !== "simulation" && (
-            <div style={{ marginBottom: "12px" }}>
-              <h3 style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 8px" }}>Tag Names</h3>
-              <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: "8px" }}>
-                {Object.entries(plcConfig.tags).map(([key, value]) => (
-                  <div key={key}>
-                    <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>
-                      {key.replace("_rms", "").replace("bearing", "Bearing ")} Tag
-                    </label>
-                    <input type="text"
-                      placeholder={plcConfig.plc_type === "allen_bradley" ? "Program:MainProgram.Bearing1_RMS" :
-                                  plcConfig.plc_type === "modbus" ? "40001" :
-                                  plcConfig.plc_type === "opcua" ? "ns=2;s=Bearing1_RMS" : ""}
-                      value={value}
-                      onChange={e => setPLCConfig({...plcConfig, tags: {...plcConfig.tags, [key]: e.target.value}})}
-                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }} />
-                  </div>
-                ))}
-              </div>
+      {/* Tag configuration */}
+      {plcConfig.plc_type !== "simulation" && (
+        <div style={{ marginBottom: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <h3 style={{ fontSize: "13px", fontWeight: 600, margin: 0 }}>Sensor Tag Mapping</h3>
+            <button onClick={browsePLCTags} disabled={browsingTags} style={{
+              ...btnStyle, background: "#378ADD", color: "white", fontSize: "12px", padding: "6px 12px"
+            }}>
+              {browsingTags ? "Connecting..." : "🔍 Browse Tags"}
+            </button>
+          </div>
+
+        {/* Tag search */}
+        {plcTags.length > 0 && (
+          <input
+            type="text"
+            placeholder="Search tags..."
+            value={tagSearch}
+            onChange={e => setTagSearch(e.target.value)}
+            style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box", marginBottom: "8px" }}
+          />
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: "8px" }}>
+          {Object.entries(plcConfig.tags).map(([key, value]) => (
+            <div key={key}>
+              <label style={{ fontSize: "12px", color: "#666", display: "block", marginBottom: "3px" }}>
+                {key.replace("_rms", "").replace("bearing", "Bearing ")} Sensor Tag
+              </label>
+              {plcTags.length > 0 ? (
+                <select
+                  value={value}
+                  onChange={e => setPLCConfig({...plcConfig, tags: {...plcConfig.tags, [key]: e.target.value}})}
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }}
+                >
+                  <option value="">-- Select tag --</option>
+                  {plcTags
+                    .filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                    .map(t => (
+                      <option key={t.name} value={t.name}>
+                        {t.name} ({t.type})
+                      </option>
+                    ))
+                  }
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  placeholder={
+                    plcConfig.plc_type === "allen_bradley" ? "Machine_Insight" :
+                    plcConfig.plc_type === "modbus" ? "40001" :
+                    plcConfig.plc_type === "opcua" ? "ns=2;s=Machine_Insight" : ""
+                  }
+                  value={value}
+                  onChange={e => setPLCConfig({...plcConfig, tags: {...plcConfig.tags, [key]: e.target.value}})}
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #ddd", fontSize: "13px", boxSizing: "border-box" }}
+                />
+              )}
             </div>
-          )}
+          ))}
+        </div>
+
+        {plcTags.length === 0 && (
+          <div style={{ marginTop: "8px", fontSize: "12px", color: "#888" }}>
+            Click "Browse Tags" to load available tags from your PLC, or type tag names manually.
+          </div>
+        )}
+      </div>
+    )}
 
           <button onClick={savePLCConfig} style={{ ...btnStyle, background: "#1D9E75", color: "white", marginBottom: "12px" }}>
             💾 Save PLC Configuration
