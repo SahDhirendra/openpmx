@@ -899,28 +899,42 @@ def save_plc_config(config: dict):
     logger.info(f"PLC config saved: {config.get('plc_type')} at {config.get('plc_ip')}")
     return {"status": "saved", "config": config}
 
-
 @router.post("/browse-plc-tags")
 async def browse_plc_tags(config: dict):
     """
     Connect to PLC and return list of available tags
-    Routes request to edge agent for actual PLC connection
     """
-    import httpx
-    
     plc_type = config.get("plc_type")
     plc_ip = config.get("plc_ip")
     plc_slot = config.get("plc_slot", 0)
-    
+
     if not plc_ip:
         raise HTTPException(status_code=400, detail="PLC IP address required")
-    
+
+    # Test mode
+    if plc_ip == "0.0.0.0":
+        print("TEST MODE - returning simulated tags")
+        test_tags = [
+            {"name": "Machine_Insight_B1", "type": "REAL", "dimensions": 0},
+            {"name": "Machine_Insight_B2", "type": "REAL", "dimensions": 0},
+            {"name": "Machine_Insight_B3", "type": "REAL", "dimensions": 0},
+            {"name": "Machine_Insight_B4", "type": "REAL", "dimensions": 0},
+            {"name": "Motor_Temperature", "type": "REAL", "dimensions": 0},
+            {"name": "Pump_Pressure", "type": "REAL", "dimensions": 0},
+            {"name": "Conveyor_Speed", "type": "REAL", "dimensions": 0},
+            {"name": "Vibration_X", "type": "REAL", "dimensions": 0},
+            {"name": "Vibration_Y", "type": "REAL", "dimensions": 0},
+            {"name": "Current_Draw", "type": "REAL", "dimensions": 0},
+        ]
+        return {"status": "connected", "tags": test_tags, "count": len(test_tags)}
+
     if plc_type == "allen_bradley":
         try:
             from pycomm3 import LogixDriver
             tags = []
-            with LogixDriver(f"{plc_ip}/{plc_slot}") as plc:
-                # Get all tags from PLC
+            with LogixDriver(f"{plc_ip}/{plc_slot}", init_tags=True, init_program_tags=True) as plc:
+                if not plc.connected:
+                    raise HTTPException(status_code=500, detail=f"Could not connect to PLC at {plc_ip}")
                 plc_tags = plc.get_tag_list()
                 for tag in plc_tags:
                     tags.append({
@@ -930,12 +944,13 @@ async def browse_plc_tags(config: dict):
                     })
             logger.info(f"Found {len(tags)} tags on PLC {plc_ip}")
             return {"status": "connected", "tags": tags, "count": len(tags)}
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"PLC connection failed: {str(e)}")
 
     elif plc_type == "modbus":
-        # For Modbus return register range
-        tags = [{"name": str(i), "type": "HOLDING_REGISTER", "dimensions": 0} 
+        tags = [{"name": str(i), "type": "HOLDING_REGISTER", "dimensions": 0}
                 for i in range(1, 101)]
         return {"status": "connected", "tags": tags, "count": len(tags)}
 
@@ -945,7 +960,6 @@ async def browse_plc_tags(config: dict):
             endpoint = config.get("opcua_endpoint")
             tags = []
             with Client(url=endpoint) as client:
-                # Browse root node
                 root = client.get_root_node()
                 objects = root.get_child(["0:Objects"])
                 for node in objects.get_children():

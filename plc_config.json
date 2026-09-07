@@ -1,13 +1,14 @@
 {
-  "plc_type": "simulation",
-  "plc_ip": "192.168.1.10",
+  "plc_type": "allen_bradley",
+  "plc_ip": "0.0.0.0",
   "plc_slot": 0,
   "opcua_endpoint": "",
   "modbus_port": 502,
   "tags": {
-    "bearing1_rms": "",
-    "bearing2_rms": "",
-    "bearing3_rms": "",
-    "bearing4_rms": ""
-  }
+    "bearing1_rms": "Machine_Insight_B1",
+    "bearing2_rms": "Machine_Insight_B2",
+    "bearing3_rms": "Machine_Insight_B3",
+    "bearing4_rms": "Machine_Insight_B4"
+  },
+  "updated_at": 1788812865.7388897
 }

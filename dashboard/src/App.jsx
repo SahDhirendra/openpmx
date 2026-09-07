@@ -515,22 +515,29 @@ export default function App() {
   }
 
   const browsePLCTags = async () => {
-  if (!plcConfig.plc_ip && plcConfig.plc_type !== "simulation") {
-    setError("Enter PLC IP address first")
-    return
+    if (!plcConfig.plc_ip && plcConfig.plc_type !== "simulation") {
+      setError("Enter PLC IP address first")
+      return
+    }
+    setBrowsingTags(true)
+    setPLCTags([])
+    setError(null)
+    try {
+      const res = await axios.post(`${API_URL}/browse-plc-tags`, plcConfig)
+      console.log("Browse tags response:", res.data)
+      
+      if (res.data && res.data.tags) {
+        setPLCTags([...res.data.tags])
+        console.log("Browse tags response:", res.data)
+      } else {
+        setError("No tags returned from PLC")
+      }
+    } catch (e) {
+      console.error("Error:", e)
+      setError(e.response?.data?.detail || "Failed to connect to PLC")
+    }
+    setBrowsingTags(false)
   }
-  setBrowsingTags(true)
-  setPLCTags([])
-  try {
-    const res = await axios.post(`${API_URL}/browse-plc-tags`, plcConfig)
-    setPLCTags(res.data.tags)
-    alert(`Found ${res.data.count} tags on PLC!`)
-  } catch (e) {
-    setError(e.response?.data?.detail || "Failed to connect to PLC")
-  }
-  setBrowsingTags(false)
-}
-
 
   const btnStyle = {
     border: "none", cursor: "pointer", borderRadius: "8px",
@@ -1104,6 +1111,18 @@ export default function App() {
             </div>
           ))}
         </div>
+
+        {plcTags.length > 0 && (
+          <div style={{ background: "#E1F5EE", padding: "8px", borderRadius: "6px", fontSize: "12px", color: "#085041", marginBottom: "8px" }}>
+            ✅ {plcTags.length} tags loaded — select tags for each sensor below
+          </div>
+        )}
+
+        {plcTags.length === 0 && (
+          <div style={{ marginTop: "8px", fontSize: "12px", color: "#888" }}>
+            Click "Browse Tags" to load available tags from your PLC, or type tag names manually.
+          </div>
+        )}
 
         {plcTags.length === 0 && (
           <div style={{ marginTop: "8px", fontSize: "12px", color: "#888" }}>
