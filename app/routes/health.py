@@ -279,11 +279,22 @@ async def ingest_reading(reading: SensorReading, db: Session = Depends(get_db)):
     return response
 
 @router.get("/history/{machine_id}")
-def get_history(machine_id: str, limit: int = 100, db: Session = Depends(get_db)):
-    """Get last N readings for a machine — used by dashboard charts"""
-    readings = db.query(SensorReadingDB)\
-        .filter(SensorReadingDB.machine_id == machine_id)\
-        .order_by(SensorReadingDB.timestamp.desc())\
+def get_history(
+    machine_id: str,
+    limit: int = 100,
+    hours: int = None,
+    db: Session = Depends(get_db)
+):
+    """Get readings for a machine with optional time range"""
+    query = db.query(SensorReadingDB)\
+        .filter(SensorReadingDB.machine_id == machine_id)
+
+    if hours:
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        query = query.filter(SensorReadingDB.timestamp >= cutoff)
+
+    readings = query.order_by(SensorReadingDB.timestamp.desc())\
         .limit(limit)\
         .all()
 

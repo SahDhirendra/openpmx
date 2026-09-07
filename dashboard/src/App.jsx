@@ -144,7 +144,7 @@ export default function App() {
   const [thresholds, setThresholds] = useState({
   bearing1: "", bearing2: "", bearing3: "", bearing4: ""})
   const [thresholdsSaved, setThresholdsSaved] = useState(false)
-
+  const [historyRange, setHistoryRange] = useState("24")
 
   useEffect(() => {
     const handleResize = () => setMobile(isMobile())
@@ -172,6 +172,12 @@ export default function App() {
   }
 }, [selectedMachine])
 
+
+useEffect(() => {
+  if (trained) {
+    loadHistory()
+  }
+}, [historyRange, selectedMachine])
 
   // ─── Auth functions ───
 
@@ -320,7 +326,10 @@ const saveThresholds = async () => {
 
   const loadHistory = async () => {
     try {
-      const histRes = await axios.get(`${API_URL}/history/${selectedMachine}`)
+      const params = historyRange === "all" 
+        ? `limit=200` 
+        : `hours=${historyRange}&limit=500`
+      const histRes = await axios.get(`${API_URL}/history/${selectedMachine}?${params}`)
       if (histRes.data.readings.length > 0) {
         const historyData = histRes.data.readings.map(r => ({
           time: new Date(r.timestamp).toLocaleTimeString(),
@@ -331,6 +340,8 @@ const saveThresholds = async () => {
           b4: r.bearing4_health,
         }))
         setHistory(historyData)
+      } else {
+        setHistory([])
       }
     } catch (e) {
       console.error("Failed to load history:", e)
@@ -1439,9 +1450,24 @@ const saveThresholds = async () => {
 
       {/* Real-time chart */}
       <div style={{ background: "white", borderRadius: "12px", padding: mobile ? "14px" : "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
           <h2 style={{ margin: 0, fontSize: mobile ? "14px" : "16px", fontWeight: 600 }}>Real-time Health History</h2>
-          <span style={{ fontSize: "12px", color: "#888" }}>{history.length > 0 ? `${history.length} readings` : "Waiting for data..."}</span>
+          <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+            {["1", "24", "168", "720", "all"].map(range => (
+              <button key={range} onClick={() => setHistoryRange(range)} style={{
+                padding: "4px 10px", borderRadius: "6px", fontSize: "12px", cursor: "pointer",
+                border: historyRange === range ? "none" : "1px solid #ddd",
+                background: historyRange === range ? "#1D9E75" : "white",
+                color: historyRange === range ? "white" : "#666",
+                fontWeight: historyRange === range ? 600 : 400
+              }}>
+                {range === "1" ? "1h" : range === "24" ? "24h" : range === "168" ? "7d" : range === "720" ? "30d" : "All"}
+              </button>
+            ))}
+            <span style={{ fontSize: "12px", color: "#888" }}>
+              {history.length > 0 ? `${history.length} readings` : "No data"}
+            </span>
+          </div>
         </div>
         {history.length > 0 ? (
           <div style={{ width: "100%", overflowX: "auto" }}>
