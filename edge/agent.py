@@ -41,18 +41,17 @@ def fetch_plc_config():
         response = requests.get(f"{API_URL}/plc-config", timeout=5)
         if response.status_code == 200:
             new_config = response.json()
-            # Check if config changed
-            if new_config.get("updated_at", 0) != current_config.get("updated_at", 0):
-                old_type = current_config.get("plc_type", "simulation")
-                new_type = new_config.get("plc_type", "simulation")
-                current_config = new_config
+            old_type = current_config.get("plc_type", "simulation")
+            new_type = new_config.get("plc_type", "simulation")
+            current_config = new_config
+            if old_type != new_type:
                 print(f"[CONFIG] PLC config updated: {old_type} → {new_type}")
                 if new_type != "simulation":
                     print(f"[CONFIG] PLC IP: {new_config.get('plc_ip')}")
-                return True  # Config changed
+            return True
     except Exception as e:
         print(f"[CONFIG] Failed to fetch config: {e}")
-    return False  # No change
+    return False
 
 # ─────────────────────────────────────────
 # PLC Reader functions
