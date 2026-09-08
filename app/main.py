@@ -34,10 +34,11 @@ async def lifespan(app: FastAPI):
     logger.info("OpenPMX backend shutting down")
 
 # Create FastAPI app
+from app.core.version import VERSION
 app = FastAPI(
     title="OpenPMX",
     description="Open-source predictive maintenance platform for manufacturing",
-    version="VERSION",
+    version=VERSION,
     lifespan=lifespan
 )
 
