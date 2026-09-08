@@ -118,27 +118,36 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     print(f"Database initialized at: {DB_PATH}")
     
-    # Create default admin user if no users exist
     db = SessionLocal()
     try:
-        # Import here to avoid circular import
-        from app.core.auth import get_password_hash
+        from app.core.auth import get_password_hash, verify_password
         
         user_count = db.query(UserDB).count()
         if user_count == 0:
+            # Create default admin
+            hashed = get_password_hash("admin123")
             admin = UserDB(
                 username="admin",
                 email="admin@openpmx.io",
-                hashed_password=get_password_hash("admin123"),
+                hashed_password=hashed,
                 role="admin",
                 is_active=True
             )
             db.add(admin)
             db.commit()
-            print("Default admin user created — username: admin, password: admin123")
-            print("IMPORTANT: Change the password after first login!")
+            print("Default admin user created")
+            print(f"Password hash: {hashed[:20]}...")
+            
+            # Verify the password works immediately
+            test = verify_password("admin123", hashed)
+            print(f"Password verification test: {test}")
+        else:
+            print(f"Users already exist: {user_count}")
+            
     except Exception as e:
         print(f"Could not create default admin: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         db.close()
 
