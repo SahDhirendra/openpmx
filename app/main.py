@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="OpenPMX",
     description="Open-source predictive maintenance platform for manufacturing",
-    version="0.1.0",
+    version="VERSION",
     lifespan=lifespan
 )
 
